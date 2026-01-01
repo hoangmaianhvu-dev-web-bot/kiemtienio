@@ -44,29 +44,38 @@ export const openTaskLink = async (taskId: number, userId: string, token: string
   const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
 
   try {
-    // 1. Gọi API thông qua Proxy để lấy nội dung mà không bị trình duyệt chặn
+    // 1. Gọi API thông qua Proxy để lấy nội dung ngầm
     const response = await fetch(proxyUrl);
     if (!response.ok) throw new Error("Proxy error");
     
     const proxyData = await response.json();
     
-    // 2. Parse (phân tích) nội dung JSON nằm bên trong field contents của proxy
+    // 2. Parse nội dung JSON nằm bên trong field contents của proxy
+    if (!proxyData.contents) throw new Error("Empty proxy content");
+    
     const data = JSON.parse(proxyData.contents);
 
     // 3. Bóc tách link theo các key phổ biến của các nhà mạng rút gọn
-    // Quét tất cả các khả năng: shortenedUrl, html, link, url, short_url...
-    const realLink = data.shortenedUrl || data.html || data.link || data.url || data.short_url || (data.data && data.data.shortenedUrl);
+    // Chấp nhận nhiều định dạng key từ các nhà cung cấp khác nhau
+    let realLink = data.shortenedUrl || 
+                   data.short_url || 
+                   data.link || 
+                   data.url || 
+                   data.html || 
+                   (data.data && data.data.shortenedUrl);
 
-    if (realLink) {
-      // THÀNH CÔNG: Chuyển hướng ngay lập tức (Replace để không bị loop nút Back)
+    // Kiểm tra tính hợp lệ của link
+    if (realLink && typeof realLink === 'string' && realLink.startsWith('http')) {
+      // THÀNH CÔNG: Bay thẳng sang trang vượt link bằng replace (không lưu history để Back ko bị loop)
       window.location.replace(realLink);
     } else {
-      // DỰ PHÒNG: Nếu bóc tách JSON không thấy link, mở link API gốc
+      // DỰ PHÒNG: Nếu bóc tách JSON không thấy link rõ ràng, mở link API gốc
+      // Trong trường hợp này, nếu nhà mạng ko hỗ trợ redirect, user có thể thấy JSON nhưng là case hiếm
       window.location.href = apiUrl;
     }
   } catch (error) {
     // LỖI: Nếu proxy hoặc fetch thất bại, mở link API trực tiếp làm fallback cuối cùng
-    console.error("Lỗi xác thực Mining Node:", error);
+    console.warn("Silent Redirect Failed, falling back to direct API link:", error);
     window.location.href = apiUrl;
   }
 };
