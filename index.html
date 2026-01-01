@@ -6,13 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DIAMOND NOVA - Hệ thống nhận Kim Cương Free số 1 VN</title>
     
-    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Load Babel Standalone -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- ES Module Shims: Trái tim của hệ thống No-Build -->
     <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js"></script>
     
     <script type="esms-options">
@@ -22,29 +17,22 @@
     </script>
 
     <script>
-      // Hook fetch để biên dịch TSX sang JS với MIME type chuẩn
+      // Custom fetch hook to compile .ts/.tsx files on the fly
       window.esmsInitOptions = {
         shimMode: true,
         fetch: async (url, options) => {
           const res = await fetch(url, options);
           if (!res.ok) return res;
-          
           if (url.endsWith('.tsx') || url.endsWith('.ts')) {
             const source = await res.text();
             try {
               const transformed = Babel.transform(source, {
-                presets: [
-                  'react', 
-                  ['typescript', { isTSX: true, allExtensions: true }]
-                ],
+                presets: ['react', ['typescript', { isTSX: true, allExtensions: true }]],
                 filename: url
               }).code;
-              
-              return new Response(transformed, {
-                headers: { 'content-type': 'application/javascript' }
-              });
+              return new Response(transformed, { headers: { 'content-type': 'application/javascript' } });
             } catch (err) {
-              console.error('Babel Transpile Error:', url, err);
+              console.error('Babel compilation error for ' + url, err);
             }
           }
           return res;
@@ -65,10 +53,7 @@
         backdrop-filter: blur(25px);
         border: 1px solid rgba(59, 130, 246, 0.15);
       }
-      .nova-glow {
-        box-shadow: 0 0 30px rgba(6, 182, 212, 0.2);
-      }
-      .cyber-gradient {
+      .nova-gradient {
         background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -79,12 +64,8 @@
         100% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0); }
       }
       .security-pulse { animation: pulse-cyan 2s infinite; }
-      
-      .no-scrollbar::-webkit-scrollbar { display: none; }
-      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 
-    <!-- Duy nhất một importmap-shim để tránh xung đột -->
     <script type="importmap-shim">
     {
       "imports": {
@@ -111,7 +92,6 @@
 <body>
     <div id="root"></div>
     <script>window.process = { env: { API_KEY: "" } };</script>
-    <!-- Entry point sử dụng type="text/babel" và module-shim để Babel xử lý an toàn -->
-    <script type="text/babel" data-presets="react,typescript" src="./index.tsx" type="module-shim"></script>
+    <script type="module-shim" src="./index.tsx"></script>
 </body>
 </html>
