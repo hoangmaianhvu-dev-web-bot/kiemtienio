@@ -57,7 +57,6 @@ export interface AdBanner {
   imageUrl: string;
   targetUrl: string;
   isActive: boolean;
-  isHidden?: boolean;
 }
 
 export interface WithdrawalRequest {
@@ -77,6 +76,7 @@ export interface Announcement {
   content: string;
   createdAt: string;
   priority: 'low' | 'high';
+  isActive?: boolean;
 }
 
 export interface AdminNotification {
@@ -96,6 +96,7 @@ export interface Giftcode {
   maxUses: number;
   usedBy: string[];
   createdAt: string;
+  isActive?: boolean;
 }
 
 export interface TaskGate {

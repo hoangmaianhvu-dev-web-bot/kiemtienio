@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, WithdrawalRequest, Giftcode, Announcement, AdBanner, ActivityLog } from '../types.ts';
 import { dbService } from '../services/dbService.ts';
@@ -37,8 +36,8 @@ const Admin: React.FC<Props> = ({ user }) => {
       const [u, w, g, a, adsData, l] = await Promise.all([
         dbService.getAllUsers(),
         dbService.getWithdrawals(),
-        dbService.getGiftcodes(true), // Admin lấy tất cả giftcode kể cả đã ẩn
-        dbService.getAnnouncements(true), // Admin lấy tất cả thông báo
+        dbService.getGiftcodes(true), 
+        dbService.getAnnouncements(true), 
         dbService.getAds(true),
         dbService.getActivityLogs()
       ]);
@@ -104,6 +103,7 @@ const Admin: React.FC<Props> = ({ user }) => {
   };
 
   const handleAddGc = async () => {
+    // Fix: call addGiftcode instead of handleAddGiftcode to match the service definition
     await dbService.addGiftcode(newGc);
     setShowModal(null);
     refreshData();
@@ -122,12 +122,11 @@ const Admin: React.FC<Props> = ({ user }) => {
   };
 
   const copySql = () => {
-    const sql = `-- MÃ KHỞI TẠO DATABASE DIAMOND NOVA (CẬP NHẬT)
--- Thêm cột is_active nếu chưa có
+    const sql = `-- MÃ KHỞI TẠO DATABASE DIAMOND NOVA (FULL STABLE)
 ALTER TABLE public.announcements ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 ALTER TABLE public.giftcodes ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 
--- Các bảng cơ bản
 CREATE TABLE IF NOT EXISTS public.users_data (
     id TEXT PRIMARY KEY,
     admin_id TEXT,
@@ -195,24 +194,12 @@ CREATE TABLE IF NOT EXISTS public.activity_logs (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS public.notifications (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    type TEXT,
-    title TEXT,
-    content TEXT,
-    user_id TEXT,
-    user_name TEXT,
-    is_read BOOLEAN DEFAULT false,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
 ALTER TABLE public.users_data DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.withdrawals DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ads DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.announcements DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.giftcodes DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.notifications DISABLE ROW LEVEL SECURITY;`;
+ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;`;
     navigator.clipboard.writeText(sql);
     setSqlCopied(true);
     setTimeout(() => setSqlCopied(false), 2000);
@@ -328,8 +315,8 @@ ALTER TABLE public.notifications DISABLE ROW LEVEL SECURITY;`;
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                  {ads.map(ad => (
-                   <div key={ad.id} className="glass-card p-6 rounded-[2.5rem] border border-white/5 relative overflow-hidden group">
-                      <img src={ad.imageUrl} alt={ad.title} className={`w-full h-40 object-cover rounded-2xl mb-4 transition-all duration-700 ${!ad.isActive ? 'grayscale opacity-30' : 'group-hover:scale-105'}`} />
+                   <div key={ad.id} className={`glass-card p-6 rounded-[2.5rem] border border-white/5 relative overflow-hidden group transition-all ${!ad.isActive ? 'grayscale opacity-40' : ''}`}>
+                      <img src={ad.imageUrl} alt={ad.title} className="w-full h-40 object-cover rounded-2xl mb-4 transition-all duration-700 group-hover:scale-105" />
                       <h4 className="font-black text-white italic uppercase text-lg">{ad.title}</h4>
                       <div className="mt-4 flex justify-between items-center">
                          <span className="text-[10px] font-black text-slate-500 italic truncate flex-1 pr-4">{ad.targetUrl}</span>
@@ -436,13 +423,36 @@ ALTER TABLE public.notifications DISABLE ROW LEVEL SECURITY;`;
                     <AlertTriangle className="w-8 h-8" />
                     <h4 className="text-xl font-black text-white italic uppercase">CÀI ĐẶT DATABASE SUPABASE</h4>
                  </div>
-                 <p className="text-slate-400 text-sm font-medium italic leading-relaxed">Nếu bạn gặp lỗi 404 hoặc không lưu được dữ liệu, hãy copy đoạn mã SQL bên dưới và chạy trong <b>Supabase -> SQL Editor -> New Query -> Run</b>.</p>
+                 <p className="text-slate-400 text-sm font-medium italic leading-relaxed">Sử dụng đoạn mã này để đồng bộ mọi bảng cần thiết cho hệ thống.</p>
                  <div className="relative group">
                     <pre className="w-full bg-black/80 border border-slate-800 rounded-2xl p-8 text-blue-400 font-mono text-[10px] overflow-x-auto max-h-72 italic">
-{`-- COPPY TOÀN BỘ MÃ NÀY --
+                       {`-- COPPY TOÀN BỘ MÃ NÀY --
 ALTER TABLE public.announcements ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 ALTER TABLE public.giftcodes ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
-...`}
+ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+
+-- Các bảng cơ bản
+CREATE TABLE IF NOT EXISTS public.users_data (
+    id TEXT PRIMARY KEY,
+    admin_id TEXT,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    fullname TEXT NOT NULL,
+    balance NUMERIC DEFAULT 0,
+    points NUMERIC DEFAULT 0,
+    total_earned NUMERIC DEFAULT 0,
+    is_admin BOOLEAN DEFAULT false,
+    is_banned BOOLEAN DEFAULT false,
+    join_date TIMESTAMPTZ DEFAULT NOW(),
+    last_task_date TIMESTAMPTZ,
+    referred_by TEXT,
+    bank_info TEXT DEFAULT '',
+    id_game TEXT DEFAULT '',
+    task_counts JSONB DEFAULT '{}'::jsonb,
+    referral_count INTEGER DEFAULT 0,
+    referral_bonus NUMERIC DEFAULT 0
+);
+-- Chạy tiếp các lệnh CREATE TABLE cho withdrawals, ads, giftcodes, v.v.`}
                     </pre>
                     <button onClick={copySql} className="absolute top-4 right-4 p-4 bg-slate-900/80 border border-white/5 rounded-xl text-slate-400 hover:text-white transition-all shadow-2xl flex items-center gap-2 font-black uppercase text-[10px]">
                        {sqlCopied ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}

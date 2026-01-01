@@ -43,7 +43,7 @@ export const TASK_RATES: Record<number, { name: string, reward: number, limit: n
   2: { name: "YEULINK", reward: 1320, limit: 4, apiKey: "891b97fa-faa4-4446-bdd3-17add1ea42bc" },
   3: { name: "YEUMONEY", reward: 1050, limit: 3, apiKey: "2103f2aa67d874c161e5f4388b2312af6d43742734a8ea41716b8a2cc94b7b02" },
   4: { name: "XLINK", reward: 1320, limit: 2, apiKey: "ac55663f-ef85-4849-8ce1-4ca99bd57ce7" },
-  5: { name: "TRAFFICTOT", reward: 1320, limit: 5, apiKey: "578e007b91cceabed9f71903e47ebb3c1be75e91" },
+  5: { name: "TRAFFICTOT", reward: 1320, limit: 5, apiKey: "hIg7wtrv8xpqhhS0QESenpEwZdOsWCdE" },
   6: { name: "LAYMANET", reward: 1320, limit: 3, apiKey: "ad22fab4209242db6c1bc093898fe2e8" }
 };
 
