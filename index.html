@@ -20,7 +20,6 @@
       window.esmsInitOptions = {
         shimMode: true,
         fetch: async (url, options) => {
-          // Resolve relative URLs to absolute ones to prevent 404s on deep routes
           const resolvedUrl = new URL(url, window.location.href).href;
           const res = await fetch(resolvedUrl, options);
           if (!res.ok) return res;

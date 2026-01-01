@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { User } from '../types.ts';
-import { dbService } from '../services/dbService.ts';
+import { dbService, supabase } from '../services/dbService.ts';
 import { 
   Ticket, 
   Sparkles, 
@@ -21,39 +21,48 @@ const Giftcode: React.FC<Props> = ({ user, onUpdateUser }) => {
   const [msg, setMsg] = useState('');
 
   const handleClaim = async () => {
-    if (!code.trim()) return;
+    if (!code.trim() || status === 'loading') return;
     setStatus('loading');
     
-    setTimeout(async () => {
-      // Fix: dbService.getGiftcodes is async.
-      const allGiftcodes = await dbService.getGiftcodes();
-      const gc = allGiftcodes.find(g => g.code.toUpperCase() === code.trim().toUpperCase());
+    try {
+      // Lấy Giftcode mới nhất từ DB để kiểm tra lượt nhập thật
+      const { data: gc, error } = await supabase.from('giftcodes').select('*').eq('code', code.trim().toUpperCase()).maybeSingle();
 
-      if (!gc) {
+      if (error || !gc) {
         setStatus('error');
         setMsg('Mã Giftcode không tồn tại hoặc đã hết hạn.');
-      } else if (gc.usedBy.includes(user.id)) {
+        return;
+      }
+
+      const usedBy = gc.used_by || [];
+      if (usedBy.includes(user.id)) {
         setStatus('error');
         setMsg('Bạn đã sử dụng mã này rồi.');
-      } else if (gc.usedBy.length >= gc.maxUses) {
+      } else if (usedBy.length >= gc.max_uses) {
         setStatus('error');
         setMsg('Mã này đã đạt giới hạn lượt nhập!');
       } else {
-        // Hợp lệ -> Tiến hành cộng điểm
-        const updatedCodes = allGiftcodes.map(g => 
-          g.code === gc.code ? { ...g, usedBy: [...g.usedBy, user.id] } : g
-        );
-        // Fix: dbService.saveGiftcodes is async.
-        await dbService.saveGiftcodes(updatedCodes);
+        // Cập nhật lượt nhập vào Supabase
+        const newUsedBy = [...usedBy, user.id];
+        const { error: updErr } = await supabase.from('giftcodes').update({ used_by: newUsedBy }).eq('code', gc.code);
         
-        const updatedUser = { ...user, balance: user.balance + gc.amount };
+        if (updErr) throw updErr;
+
+        // Cộng điểm cho User
+        const updatedUser = { ...user, balance: user.balance + Number(gc.amount) };
         onUpdateUser(updatedUser);
         
         setStatus('success');
-        setMsg(`Chúc mừng! Bạn nhận được ${gc.amount.toLocaleString()} điểm.`);
+        setMsg(`Chúc mừng! Bạn nhận được ${Number(gc.amount).toLocaleString()} điểm.`);
         setCode('');
       }
-    }, 1200);
+    } catch (e) {
+      console.error(e);
+      setStatus('error');
+      setMsg('Lỗi hệ thống. Vui lòng thử lại sau.');
+    } finally {
+      setTimeout(() => { if (status !== 'loading') setStatus('idle'); }, 5000);
+    }
   };
 
   return (
