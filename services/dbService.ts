@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { User, Giftcode, WithdrawalRequest, AdminNotification, Announcement, AdBanner, ActivityLog } from '../types.ts';
 import { REFERRAL_REWARD, RATE_VND_TO_POINT } from '../constants.tsx';
 
+// Truy cập trực tiếp process.env
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
 export const supabase = createClient(supabaseUrl, supabaseKey);
@@ -13,14 +14,14 @@ const mapUser = (u: any): User => {
     ...u,
     bankInfo: u.bank_info || '',
     idGame: u.id_game || '',
-    totalEarned: u.total_earned ?? 0,
-    isBanned: u.is_banned ?? false,
-    isAdmin: u.is_admin ?? false,
+    totalEarned: Number(u.total_earned ?? 0),
+    isBanned: Boolean(u.is_banned ?? false),
+    isAdmin: Boolean(u.is_admin ?? false),
     joinDate: u.join_date,
     lastTaskDate: u.last_task_date,
     lastLogin: u.last_login,
-    referralCount: u.referral_count ?? 0,
-    referralBonus: u.referral_bonus ?? 0,
+    referralCount: Number(u.referral_count ?? 0),
+    referralBonus: Number(u.referral_bonus ?? 0),
     referredBy: u.referred_by,
     taskCounts: u.task_counts || {}
   };
@@ -29,6 +30,7 @@ const mapUser = (u: any): User => {
 export const dbService = {
   signup: async (email: string, pass: string, fullname: string, refId?: string) => {
     try {
+      // 1. Kiểm tra bảng và email
       const { data: existing, error: checkError } = await supabase
         .from('users')
         .select('id')
@@ -36,22 +38,32 @@ export const dbService = {
         .maybeSingle();
 
       if (checkError) {
-        if (checkError.message.includes('cache')) {
-          return { success: false, message: 'Lỗi hệ thống: Bảng users chưa được tạo trên Supabase!' };
+        if (checkError.message.includes('cache') || checkError.message.includes('not found')) {
+          return { 
+            success: false, 
+            message: 'LỖI: Supabase chưa cập nhật bảng mới. Vui lòng chạy lệnh: NOTIFY pgrst, "reload schema"; trong SQL Editor của Supabase và thử lại sau 30 giây.' 
+          };
         }
-        return { success: false, message: checkError.message };
+        return { success: false, message: 'Lỗi kiểm tra: ' + checkError.message };
       }
       
-      if (existing) return { success: false, message: 'Email đã tồn tại!' };
+      if (existing) return { success: false, message: 'Email này đã được sử dụng!' };
 
+      // 2. Tạo ID người dùng mới
       const userId = Math.random().toString(36).substr(2, 9).toUpperCase();
       
-      const { count } = await supabase
+      // 3. Kiểm tra số lượng user hiện tại
+      const { count, error: countError } = await supabase
         .from('users')
         .select('id', { count: 'exact', head: true });
       
+      if (countError) {
+        console.error("Count error:", countError);
+      }
+
       const isFirst = (count || 0) === 0;
 
+      // 4. Dữ liệu hội viên mới
       const newUser = {
         id: userId,
         email,
@@ -69,16 +81,17 @@ export const dbService = {
       };
 
       const { error: insertError } = await supabase.from('users').insert([newUser]);
-      if (insertError) return { success: false, message: insertError.message };
+      if (insertError) return { success: false, message: 'Lỗi tạo tài khoản: ' + insertError.message };
 
+      // 5. Thưởng người giới thiệu
       if (refId) {
         const { data: refUser } = await supabase.from('users').select('*').eq('id', refId).maybeSingle();
         if (refUser) {
           await supabase.from('users').update({
-            balance: (refUser.balance || 0) + REFERRAL_REWARD,
-            total_earned: (refUser.total_earned || 0) + REFERRAL_REWARD,
-            referral_count: (refUser.referral_count || 0) + 1,
-            referral_bonus: (refUser.referral_bonus || 0) + REFERRAL_REWARD
+            balance: Number(refUser.balance || 0) + REFERRAL_REWARD,
+            total_earned: Number(refUser.total_earned || 0) + REFERRAL_REWARD,
+            referral_count: Number(refUser.referral_count || 0) + 1,
+            referral_bonus: Number(refUser.referral_bonus || 0) + REFERRAL_REWARD
           }).eq('id', refId);
         }
       }
@@ -86,36 +99,44 @@ export const dbService = {
       await dbService.addNotification({
         type: 'auth',
         title: 'HỘI VIÊN MỚI',
-        content: `${fullname.toUpperCase()} vừa gia nhập hệ thống.`,
+        content: `${fullname.toUpperCase()} vừa gia nhập Diamond Nova.`,
         userId: userId,
         userName: fullname.toUpperCase()
       });
 
       return { success: true, message: 'Đăng ký thành công!' };
     } catch (err: any) {
-      return { success: false, message: 'Lỗi kết nối: ' + err.message };
+      return { success: false, message: 'Lỗi hệ thống: ' + err.message };
     }
   },
 
   login: async (email: string, pass: string) => {
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .eq('password_hash', btoa(pass))
-      .maybeSingle();
+    try {
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .eq('password_hash', btoa(pass))
+        .maybeSingle();
 
-    if (error || !user) return null;
-    localStorage.setItem('nova_session_id', user.id);
-    return mapUser(user);
+      if (error || !user) return null;
+      localStorage.setItem('nova_session_id', user.id);
+      return mapUser(user);
+    } catch {
+      return null;
+    }
   },
 
   getCurrentUser: async () => {
     const id = localStorage.getItem('nova_session_id');
     if (!id) return null;
-    const { data: user, error } = await supabase.from('users').select('*').eq('id', id).maybeSingle();
-    if (error || !user) return null;
-    return mapUser(user);
+    try {
+      const { data: user, error } = await supabase.from('users').select('*').eq('id', id).maybeSingle();
+      if (error || !user) return null;
+      return mapUser(user);
+    } catch {
+      return null;
+    }
   },
 
   logout: () => {
@@ -124,7 +145,7 @@ export const dbService = {
 
   getTotalUserCount: async () => {
     try {
-      const { count } = await supabase.from('users').select('*', { count: 'exact', head: true });
+      const { count } = await supabase.from('users').select('id', { count: 'exact', head: true });
       return count || 0;
     } catch {
       return 0;
@@ -133,6 +154,7 @@ export const dbService = {
 
   updateUser: async (id: string, updates: Partial<User>) => {
     const dbUpdates: any = { ...updates };
+    
     if (updates.totalEarned !== undefined) dbUpdates.total_earned = updates.totalEarned;
     if (updates.isBanned !== undefined) dbUpdates.is_banned = updates.isBanned;
     if (updates.isAdmin !== undefined) dbUpdates.is_admin = updates.isAdmin;
@@ -141,7 +163,6 @@ export const dbService = {
     if (updates.bankInfo !== undefined) dbUpdates.bank_info = updates.bankInfo;
     if (updates.idGame !== undefined) dbUpdates.id_game = updates.idGame;
     
-    // Clean keys that shouldn't be updated directly via camelCase
     delete dbUpdates.totalEarned;
     delete dbUpdates.isBanned;
     delete dbUpdates.isAdmin;
@@ -154,21 +175,29 @@ export const dbService = {
   },
 
   getAllUsers: async () => {
-    const { data, error } = await supabase.from('users').select('*').order('balance', { ascending: false });
-    if (error) return [];
-    return (data || []).map(mapUser);
+    try {
+      const { data, error } = await supabase.from('users').select('*').order('balance', { ascending: false });
+      if (error) return [];
+      return (data || []).map(mapUser);
+    } catch {
+      return [];
+    }
   },
 
   getWithdrawals: async (userId?: string) => {
-    let query = supabase.from('withdrawals').select('*').order('created_at', { ascending: false });
-    if (userId) query = query.eq('user_id', userId);
-    const { data } = await query;
-    return (data || []).map(w => ({
-      ...w,
-      userId: w.user_id,
-      userName: w.user_name,
-      createdAt: w.created_at
-    }));
+    try {
+      let query = supabase.from('withdrawals').select('*').order('created_at', { ascending: false });
+      if (userId) query = query.eq('user_id', userId);
+      const { data } = await query;
+      return (data || []).map(w => ({
+        ...w,
+        userId: w.user_id,
+        userName: w.user_name,
+        createdAt: w.created_at
+      }));
+    } catch {
+      return [];
+    }
   },
 
   addWithdrawal: async (req: Partial<WithdrawalRequest>) => {
@@ -198,22 +227,26 @@ export const dbService = {
     if (status === 'rejected' && userId && amount) {
       const { data: user } = await supabase.from('users').select('balance').eq('id', userId).maybeSingle();
       if (user) {
-        await supabase.from('users').update({ balance: (user.balance || 0) + (amount * RATE_VND_TO_POINT) }).eq('id', userId);
+        await supabase.from('users').update({ balance: Number(user.balance || 0) + (amount * RATE_VND_TO_POINT) }).eq('id', userId);
       }
     }
   },
 
   getNotifications: async (userId?: string) => {
-    let query = supabase.from('notifications').select('*').order('created_at', { ascending: false });
-    if (userId) query = query.or(`user_id.eq.${userId},user_id.eq.all`);
-    const { data } = await query;
-    return (data || []).map(n => ({
-      ...n,
-      userId: n.user_id,
-      userName: n.user_name,
-      isRead: n.is_read,
-      createdAt: n.created_at
-    }));
+    try {
+      let query = supabase.from('notifications').select('*').order('created_at', { ascending: false });
+      if (userId) query = query.or(`user_id.eq.${userId},user_id.eq.all`);
+      const { data } = await query;
+      return (data || []).map(n => ({
+        ...n,
+        userId: n.user_id,
+        userName: n.user_name,
+        isRead: n.is_read,
+        createdAt: n.created_at
+      }));
+    } catch {
+      return [];
+    }
   },
 
   addNotification: async (notif: Partial<AdminNotification>) => {
@@ -241,11 +274,12 @@ export const dbService = {
   },
 
   getAnnouncements: async () => {
-    const { data } = await supabase.from('announcements').select('*').order('created_at', { ascending: false });
-    return (data || []).map(a => ({
-      ...a,
-      createdAt: a.created_at
-    }));
+    try {
+      const { data } = await supabase.from('announcements').select('*').order('created_at', { ascending: false });
+      return (data || []).map(a => ({ ...a, createdAt: a.created_at }));
+    } catch {
+      return [];
+    }
   },
 
   saveAnnouncement: async (ann: any) => {
@@ -258,16 +292,20 @@ export const dbService = {
   },
 
   getAds: async (includeInactive = false) => {
-    let query = supabase.from('ads').select('*');
-    if (!includeInactive) query = query.eq('is_active', true);
-    const { data } = await query;
-    return (data || []).map(ad => ({
-      ...ad,
-      imageUrl: ad.image_url,
-      targetUrl: ad.target_url,
-      isActive: ad.is_active,
-      isHidden: ad.is_hidden
-    }));
+    try {
+      let query = supabase.from('ads').select('*');
+      if (!includeInactive) query = query.eq('is_active', true);
+      const { data } = await query;
+      return (data || []).map(ad => ({
+        ...ad,
+        imageUrl: ad.image_url,
+        targetUrl: ad.target_url,
+        isActive: ad.is_active,
+        isHidden: ad.is_hidden
+      }));
+    } catch {
+      return [];
+    }
   },
 
   saveAd: async (ad: any) => {
@@ -281,13 +319,17 @@ export const dbService = {
   },
 
   getGiftcodes: async () => {
-    const { data } = await supabase.from('giftcodes').select('*').order('created_at', { ascending: false });
-    return (data || []).map(g => ({
-      ...g,
-      maxUses: g.max_uses,
-      usedBy: g.used_by || [],
-      createdAt: g.created_at
-    }));
+    try {
+      const { data } = await supabase.from('giftcodes').select('*').order('created_at', { ascending: false });
+      return (data || []).map(g => ({
+        ...g,
+        maxUses: g.max_uses,
+        usedBy: g.used_by || [],
+        createdAt: g.created_at
+      }));
+    } catch {
+      return [];
+    }
   },
 
   addGiftcode: async (gc: any) => {
@@ -302,9 +344,7 @@ export const dbService = {
 
   saveGiftcodes: async (codes: Giftcode[]) => {
     for (const gc of codes) {
-      await supabase.from('giftcodes').update({
-        used_by: gc.usedBy
-      }).eq('code', gc.code);
+      await supabase.from('giftcodes').update({ used_by: gc.usedBy }).eq('code', gc.code);
     }
   },
 
@@ -319,12 +359,16 @@ export const dbService = {
   },
 
   getActivityLogs: async () => {
-    const { data } = await supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(100);
-    return (data || []).map(l => ({
-      ...l,
-      userId: l.user_id,
-      userName: l.user_name,
-      createdAt: l.created_at
-    }));
+    try {
+      const { data } = await supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(100);
+      return (data || []).map(l => ({
+        ...l,
+        userId: l.user_id,
+        userName: l.user_name,
+        createdAt: l.created_at
+      }));
+    } catch {
+      return [];
+    }
   }
 };
