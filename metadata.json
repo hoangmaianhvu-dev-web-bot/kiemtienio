@@ -1,0 +1,13 @@
+{
+  "name": "Copy of DIAMOND NOVA",
+  "description": "Hệ thống nhận Kim Cương Free số 1 VN - Tích hợp trợ lý AI Gemini.",
+  "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/diamond-nova"
+  },
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
