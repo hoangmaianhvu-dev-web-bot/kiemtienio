@@ -9,7 +9,7 @@
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Load Babel Standalone để biên dịch TSX ngay trên trình duyệt -->
+    <!-- Load Babel Standalone -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <!-- ES Module Shims: Trái tim của hệ thống No-Build -->
@@ -29,6 +29,7 @@
           const res = await fetch(url, options);
           if (!res.ok) return res;
           
+          // Kiểm tra nếu là file tsc/ts thì biên dịch bằng Babel
           if (url.endsWith('.tsx') || url.endsWith('.ts')) {
             const source = await res.text();
             try {
@@ -81,6 +82,7 @@
       .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 
+    <!-- Duy nhất một importmap-shim để tránh xung đột -->
     <script type="importmap-shim">
     {
       "imports": {
@@ -111,7 +113,7 @@
       window.process = { env: { API_KEY: "" } };
     </script>
 
-    <!-- Sửa lỗi MIME type và GitHub Pages bằng cách dùng text/babel thay cho module -->
-    <script type="text/babel" data-presets="react,typescript" src="./index.tsx"></script>
+    <!-- Sử dụng module-shim để kích hoạt cơ chế fetch & transpile tự động -->
+    <script type="module-shim" src="./index.tsx"></script>
 </body>
 </html>

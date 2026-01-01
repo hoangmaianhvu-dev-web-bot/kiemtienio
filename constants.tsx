@@ -36,12 +36,7 @@ export const SOCIAL_LINKS = {
 
 /**
  * Danh sách 6 cổng nhiệm vụ chính thức
- * 1. Link4M: 1320 P, Limit 2
- * 2. YeuLink: 1320 P, Limit 4
- * 3. YeuMoney: 1050 P, Limit 3
- * 4. XLink: 1320 P, Limit 2
- * 5. TrafficTot: 1320 P, Limit 5
- * 6. LaymaNet: 1320 P, Limit 3
+ * Mức thưởng: 1320 P (các cổng 1,2,4,5,6) và 1050 P (cổng 3)
  */
 export const TASK_RATES: Record<number, { name: string, reward: number, limit: number, apiKey: string }> = {
   1: { name: "LINK4M", reward: 1320, limit: 2, apiKey: "68208afab6b8fc60542289b6" },
