@@ -3,9 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 import { User, Giftcode, WithdrawalRequest, AdminNotification, Announcement, AdBanner, ActivityLog } from '../types.ts';
 import { REFERRAL_REWARD, RATE_VND_TO_POINT } from '../constants.tsx';
 
-// Truy cập trực tiếp process.env
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
+// Truy cập an toàn qua window.process.env
+const supabaseUrl = (window as any).process?.env?.SUPABASE_URL || '';
+const supabaseKey = (window as any).process?.env?.SUPABASE_ANON_KEY || '';
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
 const mapUser = (u: any): User => {
@@ -30,7 +30,7 @@ const mapUser = (u: any): User => {
 export const dbService = {
   signup: async (email: string, pass: string, fullname: string, refId?: string) => {
     try {
-      // 1. Kiểm tra bảng và email
+      // 1. Kiểm tra kết nối và bảng users
       const { data: existing, error: checkError } = await supabase
         .from('users')
         .select('id')
@@ -38,36 +38,33 @@ export const dbService = {
         .maybeSingle();
 
       if (checkError) {
+        // Xử lý lỗi cache schema một cách chuyên nghiệp
         if (checkError.message.includes('cache') || checkError.message.includes('not found')) {
           return { 
             success: false, 
-            message: 'LỖI: Supabase chưa cập nhật bảng mới. Vui lòng chạy lệnh: NOTIFY pgrst, "reload schema"; trong SQL Editor của Supabase và thử lại sau 30 giây.' 
+            message: 'Đang khởi tạo Database... Vui lòng thử lại sau 30 giây (Schema Syncing).' 
           };
         }
-        return { success: false, message: 'Lỗi kiểm tra: ' + checkError.message };
+        return { success: false, message: 'Lỗi kết nối: ' + checkError.message };
       }
       
       if (existing) return { success: false, message: 'Email này đã được sử dụng!' };
 
-      // 2. Tạo ID người dùng mới
+      // 2. Tạo ID người dùng mới (9 ký tự in hoa)
       const userId = Math.random().toString(36).substr(2, 9).toUpperCase();
       
-      // 3. Kiểm tra số lượng user hiện tại
-      const { count, error: countError } = await supabase
+      // 3. Kiểm tra số lượng user hiện tại để xác định Admin đầu tiên
+      const { count } = await supabase
         .from('users')
         .select('id', { count: 'exact', head: true });
       
-      if (countError) {
-        console.error("Count error:", countError);
-      }
-
       const isFirst = (count || 0) === 0;
 
-      // 4. Dữ liệu hội viên mới
+      // 4. Chuẩn bị dữ liệu hội viên (snake_case cho DB)
       const newUser = {
         id: userId,
         email,
-        password_hash: btoa(pass),
+        password_hash: btoa(pass), // Simple encoding for demo, production should use argon2/bcrypt
         fullname: fullname.toUpperCase(),
         balance: 0,
         total_earned: 0,
@@ -81,11 +78,11 @@ export const dbService = {
       };
 
       const { error: insertError } = await supabase.from('users').insert([newUser]);
-      if (insertError) return { success: false, message: 'Lỗi tạo tài khoản: ' + insertError.message };
+      if (insertError) return { success: false, message: 'Lỗi đăng ký: ' + insertError.message };
 
-      // 5. Thưởng người giới thiệu
+      // 5. Thưởng người giới thiệu (nếu có)
       if (refId) {
-        const { data: refUser } = await supabase.from('users').select('*').eq('id', refId).maybeSingle();
+        const { data: refUser } = await supabase.from('users').select('balance,total_earned,referral_count,referral_bonus').eq('id', refId).maybeSingle();
         if (refUser) {
           await supabase.from('users').update({
             balance: Number(refUser.balance || 0) + REFERRAL_REWARD,
@@ -96,6 +93,7 @@ export const dbService = {
         }
       }
 
+      // 6. Thông báo cho Admin
       await dbService.addNotification({
         type: 'auth',
         title: 'HỘI VIÊN MỚI',
@@ -155,6 +153,7 @@ export const dbService = {
   updateUser: async (id: string, updates: Partial<User>) => {
     const dbUpdates: any = { ...updates };
     
+    // Convert camelCase to snake_case for DB
     if (updates.totalEarned !== undefined) dbUpdates.total_earned = updates.totalEarned;
     if (updates.isBanned !== undefined) dbUpdates.is_banned = updates.isBanned;
     if (updates.isAdmin !== undefined) dbUpdates.is_admin = updates.isAdmin;
@@ -336,7 +335,7 @@ export const dbService = {
     await supabase.from('giftcodes').insert([{
       code: gc.code,
       amount: gc.amount,
-      max_uses: gc.maxUses,
+      max_uses: gc.max_uses,
       used_by: [],
       created_at: new Date().toISOString()
     }]);
