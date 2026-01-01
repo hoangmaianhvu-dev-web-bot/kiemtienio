@@ -76,7 +76,7 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
     localStorage.setItem('nova_pending_task', JSON.stringify(taskData));
     setActiveTask(taskData);
     
-    dbService.logActivity(user.id, user.fullname, 'Mining Startup', `Node: ${gate.name}`);
+    dbService.logActivity(user.id, user.fullname, 'Mining Startup', `Task: ${gate.name}`);
     await openTaskLink(id, user.id, token);
     setGeneratingGate(null);
   };
@@ -120,7 +120,7 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
   return (
     <div className="space-y-12 animate-in fade-in duration-1000 pb-24 px-2">
       
-      {/* 1. AUTHENTICATION TERMINAL (NOW AT THE TOP) */}
+      {/* 1. AUTHENTICATION TERMINAL */}
       <div className="relative pt-8 max-w-4xl mx-auto">
         <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#02040a] px-10 z-10 border-x-2 border-cyan-500/50 py-1">
           <span className="text-[11px] font-black text-cyan-500 tracking-[0.5em] uppercase italic flex items-center gap-3">
@@ -183,7 +183,7 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
 
                 {!activeTask && status !== 'success' && (
                    <div className="flex items-center justify-center gap-3 text-slate-600 text-[10px] font-black uppercase tracking-[0.2em] italic bg-black/40 py-4 rounded-2xl border border-white/5">
-                      <MousePointer2 className="w-4 h-4" /> VUI LÒNG KHỞI CHẠY 1 NODE PHÍA DƯỚI
+                      <MousePointer2 className="w-4 h-4" /> VUI LÒNG BẮT ĐẦU 1 NHIỆM VỤ PHÍA DƯỚI
                    </div>
                 )}
              </div>
@@ -191,15 +191,15 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
         </div>
       </div>
 
-      {/* 2. MINING NODES (NOW BELOW TERMINAL) */}
+      {/* 2. MINING NODES */}
       <div className="space-y-10 pt-10">
         <div className="flex items-center gap-6 justify-center md:justify-start">
            <div className="p-5 bg-cyan-500/10 rounded-[1.5rem] border-2 border-cyan-500/20 shadow-glow-blue">
               <LayoutGrid className="w-8 h-8 text-cyan-400" />
            </div>
            <div>
-              <h3 className="text-4xl font-black text-white italic uppercase tracking-tighter">MINING NODES</h3>
-              <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.4em] italic">CHỌN CỔNG TRUY CẬP ĐỂ BẮT ĐẦU KHAI THÁC</p>
+              <h3 className="text-4xl font-black text-white italic uppercase tracking-tighter">CÁC NHIỆM VỤ KHAI THÁC</h3>
+              <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.4em] italic">CHỌN CỔNG TRUY CẬP ĐỂ BẮT ĐẦU KIẾM ĐIỂM</p>
            </div>
         </div>
 
@@ -216,7 +216,7 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
                   <div className="flex justify-between items-start mb-8">
                     <div>
                       <h4 className="font-black text-3xl text-white uppercase italic tracking-tighter group-hover:text-cyan-400 transition-colors">{gate.name}</h4>
-                      <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest italic">NODE ACCESS ID #{id}</span>
+                      <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest italic">TASK ACCESS ID #{id}</span>
                     </div>
                     <div className={`p-4 rounded-2xl bg-black border-2 transition-all ${isFull ? 'border-red-500/20 text-red-500' : 'border-cyan-500/20 text-cyan-500 group-hover:shadow-[0_0_15px_rgba(6,182,212,0.4)]'}`}>
                       {isFull ? <Lock className="w-7 h-7" /> : <Zap className="w-7 h-7 animate-pulse" />}
@@ -225,11 +225,11 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
 
                   <div className="space-y-6 mb-12">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-black text-slate-600 uppercase italic tracking-widest">YIELD</span>
+                      <span className="text-[11px] font-black text-slate-600 uppercase italic tracking-widest">THƯỞNG</span>
                       <span className="text-4xl font-black text-white italic tracking-tighter">+{formatK(gate.reward)} P</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-black text-slate-600 uppercase italic tracking-widest">QUOTA</span>
+                      <span className="text-[11px] font-black text-slate-600 uppercase italic tracking-widest">HẠN MỨC</span>
                       <span className="text-sm font-black text-cyan-500 italic uppercase">{currentCount} / {gate.limit} Lượt</span>
                     </div>
                   </div>
@@ -240,9 +240,9 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
                   disabled={isFull || isGenerating}
                   className={`w-full h-18 rounded-3xl font-black uppercase italic text-[11px] tracking-[0.3em] transition-all flex items-center justify-center gap-4 relative overflow-hidden group/btn ${isFull ? 'bg-slate-900 text-slate-700' : 'bg-white text-black hover:bg-cyan-500 hover:text-white shadow-xl hover:shadow-cyan-500/30'}`}
                 >
-                  {isGenerating ? <Loader2 className="w-6 h-6 animate-spin" /> : isFull ? 'NODE EXHAUSTED' : (
+                  {isGenerating ? <Loader2 className="w-6 h-6 animate-spin" /> : isFull ? 'NHIỆM VỤ ĐÃ HẾT' : (
                     <>
-                      <span>KHỞI CHẠY NODE</span>
+                      <span>BẮT ĐẦU NHIỆM VỤ</span>
                       <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-2 transition-transform" />
                     </>
                   )}
