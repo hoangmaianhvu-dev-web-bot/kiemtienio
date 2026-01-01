@@ -96,7 +96,7 @@ export const dbService = {
     if (updates.taskCounts !== undefined) dbUpdates.task_counts = updates.taskCounts;
     if (updates.bankInfo !== undefined) dbUpdates.bank_info = updates.bankInfo;
     if (updates.idGame !== undefined) dbUpdates.id_game = updates.idGame;
-    await supabase.from('users_data').update(dbUpdates).eq('id', id);
+    return await supabase.from('users_data').update(dbUpdates).eq('id', id);
   },
 
   getAllUsers: async () => {
@@ -112,13 +112,13 @@ export const dbService = {
   },
 
   addWithdrawal: async (req: any) => {
-    await supabase.from('withdrawals').insert([{
+    return await supabase.from('withdrawals').insert([{
       user_id: req.userId, user_name: req.userName, amount: req.amount, type: req.type, status: 'pending', details: req.details, created_at: new Date().toISOString()
     }]);
   },
 
   updateWithdrawalStatus: async (id: string, status: string) => {
-    await supabase.from('withdrawals').update({ status }).eq('id', id);
+    return await supabase.from('withdrawals').update({ status }).eq('id', id);
   },
 
   getNotifications: async (userId?: string) => {
@@ -129,7 +129,7 @@ export const dbService = {
   },
 
   addNotification: async (n: any) => {
-    await supabase.from('notifications').insert([{
+    return await supabase.from('notifications').insert([{
       type: n.type, title: n.title, content: n.content, user_id: n.userId || 'all', user_name: n.userName || 'System', created_at: new Date().toISOString()
     }]);
   },
@@ -144,8 +144,7 @@ export const dbService = {
   },
 
   saveAnnouncement: async (ann: any) => {
-    // Sử dụng insert thay vì upsert để đảm bảo tạo bản ghi mới có UUID tự động
-    await supabase.from('announcements').insert([{ 
+    return await supabase.from('announcements').insert([{ 
       title: ann.title, 
       content: ann.content, 
       priority: ann.priority || 'low', 
@@ -155,23 +154,27 @@ export const dbService = {
   },
 
   updateAnnouncementStatus: async (id: string, isActive: boolean) => {
-    await supabase.from('announcements').update({ is_active: isActive }).eq('id', id);
+    return await supabase.from('announcements').update({ is_active: isActive }).eq('id', id);
   },
 
   deleteAnnouncement: async (id: string) => {
-    await supabase.from('announcements').delete().eq('id', id);
+    return await supabase.from('announcements').delete().eq('id', id);
   },
 
   getAds: async (all = false) => {
     let q = supabase.from('ads').select('*');
     if (!all) q = q.eq('is_active', true);
     const { data, error } = await q;
-    return error ? handleDbError(error) : (data || []).map(ad => ({ ...ad, imageUrl: ad.image_url, target_url: ad.target_url, isActive: ad.is_active }));
+    return error ? handleDbError(error) : (data || []).map(ad => ({ 
+      ...ad, 
+      imageUrl: ad.image_url, 
+      targetUrl: ad.target_url, 
+      isActive: ad.is_active 
+    }));
   },
 
   saveAd: async (ad: any) => {
-    // Sử dụng insert thay vì upsert
-    await supabase.from('ads').insert([{ 
+    return await supabase.from('ads').insert([{ 
       title: ad.title, 
       image_url: ad.imageUrl, 
       target_url: ad.targetUrl, 
@@ -180,22 +183,27 @@ export const dbService = {
   },
 
   updateAdStatus: async (id: string, isActive: boolean) => {
-    await supabase.from('ads').update({ is_active: isActive }).eq('id', id);
+    return await supabase.from('ads').update({ is_active: isActive }).eq('id', id);
   },
 
   deleteAd: async (id: string) => {
-    await supabase.from('ads').delete().eq('id', id);
+    return await supabase.from('ads').delete().eq('id', id);
   },
 
   getGiftcodes: async (all = false) => {
     let q = supabase.from('giftcodes').select('*');
     if (!all) q = q.eq('is_active', true);
     const { data, error } = await q;
-    return error ? handleDbError(error) : (data || []).map(g => ({ ...g, maxUses: g.max_uses, usedBy: g.used_by || [], isActive: g.is_active }));
+    return error ? handleDbError(error) : (data || []).map(g => ({ 
+      ...g, 
+      maxUses: g.max_uses, 
+      usedBy: g.used_by || [], 
+      isActive: g.is_active 
+    }));
   },
 
   addGiftcode: async (gc: any) => {
-    await supabase.from('giftcodes').insert([{ 
+    return await supabase.from('giftcodes').insert([{ 
       code: gc.code.toUpperCase(), 
       amount: gc.amount, 
       max_uses: gc.maxUses, 
@@ -206,7 +214,7 @@ export const dbService = {
   },
 
   updateGiftcodeStatus: async (code: string, isActive: boolean) => {
-    await supabase.from('giftcodes').update({ is_active: isActive }).eq('code', code);
+    return await supabase.from('giftcodes').update({ is_active: isActive }).eq('code', code);
   },
 
   saveGiftcodes: async (codes: any[]) => {
@@ -216,7 +224,7 @@ export const dbService = {
   },
 
   deleteGiftcode: async (code: string) => {
-    await supabase.from('giftcodes').delete().eq('code', code);
+    return await supabase.from('giftcodes').delete().eq('code', code);
   },
 
   logActivity: async (uId: string, uName: string, action: string, details: string) => {

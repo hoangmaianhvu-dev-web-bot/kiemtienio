@@ -18,6 +18,7 @@ interface Props {
 const Admin: React.FC<Props> = ({ user }) => {
   const [tab, setTab] = useState<'users' | 'withdrawals' | 'ads' | 'announcements' | 'giftcodes' | 'logs' | 'setup'>('users');
   const [searchTerm, setSearchTerm] = useState('');
+  const [withdrawSearchTerm, setWithdrawSearchTerm] = useState('');
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [giftcodes, setGiftcodes] = useState<Giftcode[]>([]);
@@ -72,10 +73,15 @@ const Admin: React.FC<Props> = ({ user }) => {
 
   const handleAddAd = async () => {
     if (!newAd.title || !newAd.imageUrl) return alert("Vui lòng nhập đủ thông tin!");
-    await dbService.saveAd(newAd);
-    setNewAd({ title: '', imageUrl: '', targetUrl: '' });
-    setShowModal(null);
-    refreshData();
+    try {
+      const { error } = await dbService.saveAd(newAd);
+      if (error) throw error;
+      setNewAd({ title: '', imageUrl: '', targetUrl: '' });
+      setShowModal(null);
+      refreshData();
+    } catch (err: any) {
+      alert("Lỗi khi tạo quảng cáo: " + (err.message || "Bảng 'ads' chưa tồn tại hoặc bị lỗi RLS."));
+    }
   };
 
   const handleToggleAd = async (id: string, current: boolean) => {
@@ -92,10 +98,15 @@ const Admin: React.FC<Props> = ({ user }) => {
 
   const handleAddAnn = async () => {
     if (!newAnn.title || !newAnn.content) return alert("Vui lòng nhập đủ thông tin!");
-    await dbService.saveAnnouncement(newAnn);
-    setNewAnn({ title: '', content: '', priority: 'low' });
-    setShowModal(null);
-    refreshData();
+    try {
+      const { error } = await dbService.saveAnnouncement(newAnn);
+      if (error) throw error;
+      setNewAnn({ title: '', content: '', priority: 'low' });
+      setShowModal(null);
+      refreshData();
+    } catch (err: any) {
+      alert("Lỗi khi tạo thông báo: " + (err.message || "Bảng 'announcements' chưa tồn tại."));
+    }
   };
 
   const handleToggleAnn = async (id: string, current: boolean) => {
@@ -112,10 +123,15 @@ const Admin: React.FC<Props> = ({ user }) => {
 
   const handleAddGc = async () => {
     if (!newGc.code || !newGc.amount) return alert("Vui lòng nhập đủ thông tin!");
-    await dbService.addGiftcode(newGc);
-    setNewGc({ code: '', amount: 10000, maxUses: 100 });
-    setShowModal(null);
-    refreshData();
+    try {
+      const { error } = await dbService.addGiftcode(newGc);
+      if (error) throw error;
+      setNewGc({ code: '', amount: 10000, maxUses: 100 });
+      setShowModal(null);
+      refreshData();
+    } catch (err: any) {
+      alert("Lỗi khi tạo Giftcode: " + (err.message || "Bảng 'giftcodes' chưa tồn tại."));
+    }
   };
 
   const handleToggleGc = async (code: string, current: boolean) => {
@@ -214,6 +230,11 @@ ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;`;
     setTimeout(() => setSqlCopied(false), 2000);
   };
 
+  const filteredWithdrawals = withdrawals.filter(w => 
+    w.userName.toLowerCase().includes(withdrawSearchTerm.toLowerCase()) ||
+    w.details.toLowerCase().includes(withdrawSearchTerm.toLowerCase())
+  );
+
   return (
     <div className="space-y-8 animate-in fade-in pb-20">
       <div className="flex justify-between items-center">
@@ -263,7 +284,7 @@ ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;`;
                     </tr>
                   </thead>
                   <tbody>
-                    {allUsers.filter(u => u.fullname.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase())).map(u => (
+                    {allUsers.filter(u => u.fullname.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()) || u.id.toLowerCase().includes(searchTerm.toLowerCase())).map(u => (
                       <tr key={u.id} className="border-b border-white/5 hover:bg-white/[0.02]">
                         <td className="px-6 py-6">
                            <div className="font-black text-white italic text-base uppercase">{u.fullname}</div>
@@ -285,17 +306,29 @@ ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;`;
 
         {tab === 'withdrawals' && (
            <div className="space-y-6 animate-in slide-in-from-right-4">
-             {withdrawals.length === 0 ? <p className="text-center py-20 text-slate-600 font-black italic">Không có yêu cầu rút tiền nào.</p> : 
-               withdrawals.map(w => (
+             <div className="flex justify-between items-center mb-4">
+                <div className="relative w-full max-w-md">
+                   <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+                   <input 
+                      type="text" 
+                      value={withdrawSearchTerm} 
+                      onChange={e => setWithdrawSearchTerm(e.target.value)} 
+                      placeholder="Tìm theo Gmail hoặc Tên người rút..." 
+                      className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-16 pr-6 py-4 text-white font-bold outline-none focus:border-blue-500 shadow-inner text-xs" 
+                   />
+                </div>
+             </div>
+             {filteredWithdrawals.length === 0 ? <p className="text-center py-20 text-slate-600 font-black italic">Không tìm thấy yêu cầu rút tiền nào khớp.</p> : 
+               filteredWithdrawals.map(w => (
                  <div key={w.id} className="glass-card p-8 rounded-[3rem] border border-white/5 flex flex-col md:flex-row items-center justify-between gap-8">
                     <div className="flex gap-6 items-center">
                        <div className={`p-5 rounded-2xl ${w.type==='bank'?'bg-emerald-600/10 text-emerald-400':'bg-purple-600/10 text-purple-400'}`}>
                           {w.type==='bank'?<Building2 size={32}/>:<Gamepad2 size={32}/>}
                        </div>
                        <div>
-                          <div className="text-[10px] font-black text-slate-500 uppercase italic">Người rút: {w.userName}</div>
+                          <div className="text-[10px] font-black text-blue-400 uppercase italic mb-1">Gmail/User: {w.userName}</div>
                           <h4 className="font-black text-2xl text-white italic tracking-tighter">{w.amount.toLocaleString()}đ ({w.type.toUpperCase()})</h4>
-                          <div className="text-[11px] text-blue-400 font-bold italic mt-1 bg-blue-400/10 px-3 py-1 rounded-full inline-block">Thông tin: {w.details}</div>
+                          <div className="text-[11px] text-slate-400 font-bold italic mt-1 bg-white/5 px-3 py-1 rounded-full inline-block">Thông tin: {w.details}</div>
                        </div>
                     </div>
                     {w.status === 'pending' ? (
