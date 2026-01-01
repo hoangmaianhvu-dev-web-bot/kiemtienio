@@ -22,8 +22,7 @@
     </script>
 
     <script>
-      // Hook can thiệp vào quá trình Fetch để biên dịch file .ts/.tsx sang .js với MIME type đúng
-      // Giải quyết triệt để lỗi application/octet-stream trên GitHub Pages/Blogger
+      // Hook fetch để biên dịch TSX sang JS với MIME type chuẩn
       window.esmsInitOptions = {
         shimMode: true,
         fetch: async (url, options) => {
@@ -45,7 +44,7 @@
                 headers: { 'content-type': 'application/javascript' }
               });
             } catch (err) {
-              console.error('Lỗi biên dịch Babel tại: ' + url, err);
+              console.error('Babel Transpile Error:', url, err);
             }
           }
           return res;
@@ -62,27 +61,30 @@
         overflow-x: hidden;
       }
       .glass-card {
-        background: rgba(10, 15, 30, 0.7);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(59, 130, 246, 0.1);
+        background: rgba(10, 15, 30, 0.75);
+        backdrop-filter: blur(25px);
+        border: 1px solid rgba(59, 130, 246, 0.15);
       }
-      .nova-gradient {
+      .nova-glow {
+        box-shadow: 0 0 30px rgba(6, 182, 212, 0.2);
+      }
+      .cyber-gradient {
         background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
       }
-      @keyframes float {
-        0% { transform: translateY(0px) rotate(0deg); }
-        50% { transform: translateY(-15px) rotate(2deg); }
-        100% { transform: translateY(0px) rotate(0deg); }
+      @keyframes pulse-cyan {
+        0% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.4); }
+        70% { box-shadow: 0 0 0 15px rgba(6, 182, 212, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0); }
       }
-      .float-animation { animation: float 6s ease-in-out infinite; }
+      .security-pulse { animation: pulse-cyan 2s infinite; }
       
       .no-scrollbar::-webkit-scrollbar { display: none; }
       .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 
-    <!-- Duy nhất một importmap-shim để tránh xung đột với trình duyệt -->
+    <!-- Duy nhất một importmap-shim để tránh xung đột -->
     <script type="importmap-shim">
     {
       "imports": {
@@ -108,12 +110,8 @@
 </head>
 <body>
     <div id="root"></div>
-
-    <script>
-      window.process = { env: { API_KEY: "" } };
-    </script>
-
-    <!-- Sử dụng module-shim để Babel transpile tự động qua cơ chế fetch đã hook -->
-    <script type="module-shim" src="./index.tsx"></script>
+    <script>window.process = { env: { API_KEY: "" } };</script>
+    <!-- Entry point sử dụng type="text/babel" và module-shim để Babel xử lý an toàn -->
+    <script type="text/babel" data-presets="react,typescript" src="./index.tsx" type="module-shim"></script>
 </body>
 </html>

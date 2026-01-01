@@ -3,18 +3,16 @@ import { BLOG_DESTINATION, TASK_RATES } from '../constants.tsx';
 
 /**
  * Hàm mở link nhiệm vụ. 
- * Sử dụng window.open để vượt qua lỗi CORS (Chặn truy cập API chéo sân).
- * Hệ thống tự động tạo link rút gọn với đích đến là trang Blog lấy mã.
+ * Hệ thống gọi API nhà mạng, bóc tách JSON để lấy link rút gọn cuối cùng và chuyển hướng ngay lập tức.
  */
-export const openTaskLink = (taskId: number, userId: string, token: string) => {
+export const openTaskLink = async (taskId: number, userId: string, token: string) => {
   const task = TASK_RATES[taskId];
   if (!task) return;
 
-  // Đích đến là Blog lấy mã, có kèm theo Token bảo mật (Security Token)
   const dest = encodeURIComponent(`${BLOG_DESTINATION}?uid=${userId}&tid=${taskId}&key=${token}`);
   let apiUrl = "";
 
-  // Cấu hình URL rút gọn dựa trên cấu trúc API chuẩn của từng nhà cung cấp
+  // Xây dựng API URL chính xác theo mẫu được cung cấp
   switch(taskId) {
     case 1: 
       apiUrl = `https://link4m.co/api-shorten/v2?api=${task.apiKey}&url=${dest}`; 
@@ -36,10 +34,30 @@ export const openTaskLink = (taskId: number, userId: string, token: string) => {
       break;
   }
 
-  // Mở tab mới để trình duyệt xử lý redirect
-  if (apiUrl) {
-    window.open(apiUrl, "_blank");
-  } else {
-    console.error("Lỗi: Không xác định được cấu hình API cho Node ID:", taskId);
+  if (!apiUrl) return;
+
+  try {
+    // Gọi API để lấy link rút gọn (Shortened Link)
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+
+    let finalLink = "";
+
+    // Bóc tách link chính xác dựa trên cấu trúc JSON của từng nhà mạng
+    if (data.status === "success" || data.success === true || data.shortenedUrl || data.link) {
+      finalLink = data.shortenedUrl || data.link || data.url || (data.data && data.data.shortenedUrl);
+    }
+
+    if (finalLink) {
+      // Chuyển hướng người dùng ngay lập tức đến link rút gọn đích thực
+      window.location.href = finalLink;
+    } else {
+      // Fallback: Nếu không bóc tách được JSON, buộc phải mở API URL trực tiếp
+      window.location.href = apiUrl;
+    }
+  } catch (error) {
+    console.error("Task API Error (CORS or Network):", error);
+    // Nếu bị lỗi CORS, chuyển hướng thẳng đến API URL (nhà mạng sẽ tự redirect)
+    window.location.href = apiUrl;
   }
 };
