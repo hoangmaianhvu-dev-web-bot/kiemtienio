@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, WithdrawalRequest, Giftcode, Announcement, AdBanner, ActivityLog } from '../types.ts';
 import { dbService } from '../services/dbService.ts';
@@ -67,7 +68,9 @@ const Admin: React.FC<Props> = ({ user }) => {
   };
 
   const handleAddAd = async () => {
+    if (!newAd.title || !newAd.imageUrl) return;
     await dbService.saveAd(newAd);
+    setNewAd({ title: '', imageUrl: '', targetUrl: '' });
     setShowModal(null);
     refreshData();
   };
@@ -85,7 +88,9 @@ const Admin: React.FC<Props> = ({ user }) => {
   };
 
   const handleAddAnn = async () => {
+    if (!newAnn.title || !newAnn.content) return;
     await dbService.saveAnnouncement(newAnn);
+    setNewAnn({ title: '', content: '', priority: 'low' });
     setShowModal(null);
     refreshData();
   };
@@ -103,8 +108,9 @@ const Admin: React.FC<Props> = ({ user }) => {
   };
 
   const handleAddGc = async () => {
-    // Fix: call addGiftcode instead of handleAddGiftcode to match the service definition
+    if (!newGc.code || !newGc.amount) return;
     await dbService.addGiftcode(newGc);
+    setNewGc({ code: '', amount: 10000, maxUses: 100 });
     setShowModal(null);
     refreshData();
   };
