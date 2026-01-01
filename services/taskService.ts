@@ -2,21 +2,21 @@
 import { BLOG_DESTINATION, TASK_RATES } from '../constants.tsx';
 
 /**
- * Silent Mining Redirect 2.0:
- * 1. Gọi API nhà mạng thông qua Proxy (allorigins.win) để vượt rào cản CORS.
- * 2. Phân tích nội dung JSON trả về để trích xuất link rút gọn thực tế.
- * 3. Tự động chuyển hướng (Redirect) người dùng đến link đích ngay lập tức.
- * 
- * Mục tiêu: Loại bỏ hoàn toàn màn hình JSON đen/trắng gây khó chịu cho người dùng.
+ * Silent Mining Redirect 2.5:
+ * 1. Xây dựng API URL dựa trên cấu hình nhà mạng.
+ * 2. Sử dụng Proxy (allorigins.win) để gọi API ngầm, tránh CORS và không hiện JSON cho User.
+ * 3. Bóc tách field "shortenedUrl" (hoặc link rút gọn tương đương) từ dữ liệu trả về.
+ * 4. Chuyển hướng trực tiếp (window.location.replace) sang trang web đích.
  */
 export const openTaskLink = async (taskId: number, userId: string, token: string) => {
   const task = TASK_RATES[taskId];
   if (!task) return;
 
+  // Tạo link đích mà người dùng sẽ quay lại sau khi vượt link (Security Page)
   const dest = encodeURIComponent(`${BLOG_DESTINATION}?uid=${userId}&tid=${taskId}&key=${token}`);
   let apiUrl = "";
 
-  // Xây dựng API URL chính xác cho từng nhà mạng dựa trên ID
+  // Cấu hình Endpoint API cho từng nhà mạng
   switch(taskId) {
     case 1: // LINK4M
       apiUrl = `https://link4m.co/api-shorten/v2?api=${task.apiKey}&url=${dest}`; 
@@ -40,23 +40,22 @@ export const openTaskLink = async (taskId: number, userId: string, token: string
 
   if (!apiUrl) return;
 
-  // SỬ DỤNG PROXY ĐỂ FIX TRIỆT ĐỂ LỖI HIỆN JSON VÀ CORS
+  // Sử dụng Proxy AllOrigins để lấy JSON ngầm (Vượt CORS)
   const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
 
   try {
-    // 1. Gọi API thông qua Proxy để lấy nội dung ngầm
+    // Gọi fetch ngầm
     const response = await fetch(proxyUrl);
-    if (!response.ok) throw new Error("Proxy error");
+    if (!response.ok) throw new Error("Cổng Proxy gặp sự cố");
     
     const proxyData = await response.json();
     
-    // 2. Parse nội dung JSON nằm bên trong field contents của proxy
-    if (!proxyData.contents) throw new Error("Empty proxy content");
-    
+    // Parse nội dung JSON thật từ field 'contents' của Proxy
+    if (!proxyData.contents) throw new Error("Dữ liệu Proxy trống");
     const data = JSON.parse(proxyData.contents);
 
-    // 3. Bóc tách link theo các key phổ biến của các nhà mạng rút gọn
-    // Chấp nhận nhiều định dạng key từ các nhà cung cấp khác nhau
+    // Bóc tách link rút gọn thực tế (ví dụ: https://link4m.com/ScBN5E)
+    // Ưu tiên field 'shortenedUrl' như Link4M cung cấp, sau đó là các field phổ biến khác
     let realLink = data.shortenedUrl || 
                    data.short_url || 
                    data.link || 
@@ -64,18 +63,17 @@ export const openTaskLink = async (taskId: number, userId: string, token: string
                    data.html || 
                    (data.data && data.data.shortenedUrl);
 
-    // Kiểm tra tính hợp lệ của link
     if (realLink && typeof realLink === 'string' && realLink.startsWith('http')) {
-      // THÀNH CÔNG: Bay thẳng sang trang vượt link bằng replace (không lưu history để Back ko bị loop)
+      // THÀNH CÔNG: Bay thẳng qua web nhà mạng (ví dụ: link4m.com/...)
+      // Dùng replace để không lưu history, tránh việc User nhấn Back lại bị quay lại trang JSON
       window.location.replace(realLink);
     } else {
-      // DỰ PHÒNG: Nếu bóc tách JSON không thấy link rõ ràng, mở link API gốc
-      // Trong trường hợp này, nếu nhà mạng ko hỗ trợ redirect, user có thể thấy JSON nhưng là case hiếm
+      // DỰ PHÒNG: Nếu bóc tách lỗi, mở link API trực tiếp (User có thể thấy JSON)
       window.location.href = apiUrl;
     }
   } catch (error) {
-    // LỖI: Nếu proxy hoặc fetch thất bại, mở link API trực tiếp làm fallback cuối cùng
-    console.warn("Silent Redirect Failed, falling back to direct API link:", error);
+    // LỖI: Fallback cuối cùng là chuyển hướng trực tiếp tới API
+    console.warn("Silent Redirect Failed:", error);
     window.location.href = apiUrl;
   }
 };
