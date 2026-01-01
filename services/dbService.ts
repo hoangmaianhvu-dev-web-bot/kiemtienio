@@ -13,6 +13,7 @@ const STORAGE_KEY_ADS = 'diamond_earn_ads';
 const STORAGE_KEY_LOGS = 'diamond_earn_activity_logs';
 
 export const dbService = {
+  // ... (giữ nguyên logic gốc của bạn)
   signup: (email: string, pass: string, fullname: string, refId?: string): { success: boolean, message: string } => {
     const accounts: AccountRecord[] = JSON.parse(localStorage.getItem(STORAGE_KEY_ACCOUNTS) || '[]');
     if (accounts.find(a => a.email === email)) return { success: false, message: 'Email đã tồn tại!' };
