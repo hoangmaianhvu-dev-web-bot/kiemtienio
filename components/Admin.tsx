@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, WithdrawalRequest, Giftcode, Announcement, AdBanner, ActivityLog } from '../types.ts';
 import { dbService } from '../services/dbService.ts';
@@ -457,8 +456,7 @@ CREATE TABLE IF NOT EXISTS public.users_data (
     task_counts JSONB DEFAULT '{}'::jsonb,
     referral_count INTEGER DEFAULT 0,
     referral_bonus NUMERIC DEFAULT 0
-);
--- Chạy tiếp các lệnh CREATE TABLE cho withdrawals, ads, giftcodes, v.v.`}
+);`}
                     </pre>
                     <button onClick={copySql} className="absolute top-4 right-4 p-4 bg-slate-900/80 border border-white/5 rounded-xl text-slate-400 hover:text-white transition-all shadow-2xl flex items-center gap-2 font-black uppercase text-[10px]">
                        {sqlCopied ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}

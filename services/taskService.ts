@@ -1,11 +1,11 @@
-
 import { BLOG_DESTINATION, TASK_RATES } from '../constants.tsx';
 
 /**
- * Silent Redirect 8.0:
+ * Silent Redirect 9.0:
  * - Đối với TrafficTot: Sử dụng endpoint /redirect để trình duyệt tự xử lý 302.
- * - Đối với các cổng khác: Bóc tách JSON qua proxy và chuyển hướng ngay lập tức.
- * - Đảm bảo không hiển thị URL API thô trên tab của người dùng.
+ * - Đối với LayMaNet: Bóc tách trường 'html' từ JSON.
+ * - Đối với các cổng khác: Bóc tách JSON qua proxy và mở link rút gọn ngay lập tức.
+ * - Đảm bảo không hiện trang API JSON thô cho người dùng.
  */
 export const openTaskLink = async (taskId: number, userId: string, token: string) => {
   const task = TASK_RATES[taskId];
@@ -29,7 +29,7 @@ export const openTaskLink = async (taskId: number, userId: string, token: string
     case 4: // XLink
       apiUrl = `https://xlink.co/api?token=${task.apiKey}&url=${dest}`; 
       break;
-    case 5: // TrafficTot - Chuyển sang endpoint /redirect để mở link trực tiếp
+    case 5: // TrafficTot - Sử dụng endpoint /redirect để trình duyệt xử lý redirect 302
       apiUrl = `https://services.traffictot.com/api/v1/shorten/redirect?api_key=${task.apiKey}&url=${dest}`;
       isDirectRedirect = true;
       break;
@@ -40,7 +40,7 @@ export const openTaskLink = async (taskId: number, userId: string, token: string
 
   if (!apiUrl) return;
 
-  // Mở tab mới ngay lập tức để tránh Popup Blocker
+  // Mở tab mới ngay lập tức để tránh Popup Blocker (trình duyệt cho phép mở tab trắng khi click)
   const newWindow = window.open('about:blank', '_blank');
   if (newWindow) {
     newWindow.document.write(`
@@ -76,20 +76,21 @@ export const openTaskLink = async (taskId: number, userId: string, token: string
           text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
         }
         .sub-text {
-          margin-top: 10px;
+          margin-top: 15px;
           color: #475569;
-          font-size: 10px;
+          font-size: 11px;
           font-weight: 700;
           letter-spacing: 1px;
+          text-align: center;
         }
       </style>
       <div class="loader"></div>
-      <div class="text">ĐANG KHỞI TẠO NHIỆM VỤ...</div>
-      <div class="sub-text">Hệ thống Nova đang kết nối an toàn</div>
+      <div class="text">NOVA CLOUD SYNC</div>
+      <div class="sub-text">ĐANG KẾT NỐI MÁY CHỦ NHIỆM VỤ...</div>
     `);
   }
 
-  // Nếu là TrafficTot hoặc các cổng dùng Direct Redirect (302)
+  // Nếu là TrafficTot (endpoint redirect trả về 302), chuyển hướng tab đã mở ngay
   if (isDirectRedirect) {
     if (newWindow) {
       newWindow.location.href = apiUrl;
@@ -97,28 +98,28 @@ export const openTaskLink = async (taskId: number, userId: string, token: string
     return;
   }
 
-  // Đối với các cổng trả về JSON, dùng proxy để bóc tách
+  // Đối với các cổng trả về JSON, dùng proxy để bóc tách và tự động chuyển hướng
   const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
 
   try {
     const response = await fetch(proxyUrl);
-    if (!response.ok) throw new Error("Proxy error");
+    if (!response.ok) throw new Error("Proxy connection error");
     
     const proxyData = await response.json();
-    if (!proxyData.contents) throw new Error("Empty contents");
+    if (!proxyData.contents) throw new Error("Empty response contents");
     
-    // Thử parse JSON từ nội dung trả về
     let realLink = "";
     try {
       const data = JSON.parse(proxyData.contents);
-      realLink = data.shortenedUrl || 
-                 data.html || 
-                 data.link || 
-                 data.short_url || 
+      // Thuật toán bóc tách link rút gọn từ JSON của các nhà cung cấp
+      realLink = data.html || // LayMaNet
+                 data.shortenedUrl || // Link4M, YeuLink
+                 data.link || // XLink, YeuMoney
+                 data.short_url || // TrafficTot JSON mode
                  data.url || 
-                 (data.data && (data.data.shortenedUrl || data.data.html || data.data.link || data.data.short_url || data.data.url));
+                 (data.data && (data.data.html || data.data.shortenedUrl || data.data.link || data.data.short_url || data.data.url));
     } catch (e) {
-      // Nếu không phải JSON, kiểm tra xem nội dung có phải là URL trực tiếp không
+      // Dự phòng: Nếu response không phải JSON mà là URL text thô
       const trimmed = proxyData.contents.trim();
       if (trimmed.startsWith('http')) {
         realLink = trimmed;
@@ -130,13 +131,13 @@ export const openTaskLink = async (taskId: number, userId: string, token: string
         newWindow.location.href = realLink;
       }
     } else {
-      // Bất khả kháng mới mở thẳng apiUrl
+      // Bất khả kháng mới mở thẳng apiUrl (ví cập nhật thất bại)
       if (newWindow) {
         newWindow.location.href = apiUrl;
       }
     }
   } catch (error) {
-    console.warn("Lỗi bóc tách link, mở link API trực tiếp:", error);
+    console.warn("Lỗi bóc tách link, mở link API trực tiếp làm dự phòng:", error);
     if (newWindow) {
       newWindow.location.href = apiUrl;
     }
