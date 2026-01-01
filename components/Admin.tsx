@@ -148,6 +148,8 @@ const Admin: React.FC<Props> = ({ user }) => {
 
   const copySql = () => {
     const sql = `-- MÃ KHỞI TẠO VÀ SỬA LỖI DATABASE DIAMOND NOVA (FULL REPAIR)
+-- Hãy copy toàn bộ mã này và chạy trong Supabase SQL Editor
+
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- 1. Bảng Dữ liệu người dùng
@@ -224,20 +226,48 @@ CREATE TABLE IF NOT EXISTS public.activity_logs (
 );
 
 -- REPAIR: TỰ ĐỘNG THÊM CỘT BỊ THIẾU VÀO CÁC BẢNG HIỆN CÓ
-ALTER TABLE public.users_data ADD COLUMN IF NOT EXISTS reset_code TEXT;
-ALTER TABLE public.users_data ADD COLUMN IF NOT EXISTS tasks_today INTEGER DEFAULT 0;
-ALTER TABLE public.users_data ADD COLUMN IF NOT EXISTS tasks_week INTEGER DEFAULT 0;
+DO $$ 
+BEGIN
+    -- Sửa bảng users_data
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users_data' AND column_name='reset_code') THEN
+        ALTER TABLE public.users_data ADD COLUMN reset_code TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users_data' AND column_name='tasks_today') THEN
+        ALTER TABLE public.users_data ADD COLUMN tasks_today INTEGER DEFAULT 0;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users_data' AND column_name='tasks_week') THEN
+        ALTER TABLE public.users_data ADD COLUMN tasks_week INTEGER DEFAULT 0;
+    END IF;
 
-ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+    -- Sửa bảng ads
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ads' AND column_name='created_at') THEN
+        ALTER TABLE public.ads ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ads' AND column_name='is_active') THEN
+        ALTER TABLE public.ads ADD COLUMN is_active BOOLEAN DEFAULT true;
+    END IF;
 
-ALTER TABLE public.announcements ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-ALTER TABLE public.announcements ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+    -- Sửa bảng announcements
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='announcements' AND column_name='created_at') THEN
+        ALTER TABLE public.announcements ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='announcements' AND column_name='is_active') THEN
+        ALTER TABLE public.announcements ADD COLUMN is_active BOOLEAN DEFAULT true;
+    END IF;
 
-ALTER TABLE public.giftcodes ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-ALTER TABLE public.giftcodes ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+    -- Sửa bảng giftcodes
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='giftcodes' AND column_name='created_at') THEN
+        ALTER TABLE public.giftcodes ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='giftcodes' AND column_name='is_active') THEN
+        ALTER TABLE public.giftcodes ADD COLUMN is_active BOOLEAN DEFAULT true;
+    END IF;
 
-ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+    -- Sửa bảng withdrawals
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='withdrawals' AND column_name='created_at') THEN
+        ALTER TABLE public.withdrawals ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+    END IF;
+END $$;
 
 -- Tắt RLS để Prototype hoạt động mượt mà
 ALTER TABLE public.users_data DISABLE ROW LEVEL SECURITY;
@@ -486,7 +516,7 @@ ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;`;
                     <AlertTriangle className="w-8 h-8" />
                     <h4 className="text-xl font-black text-white italic uppercase">CÀI ĐẶT DATABASE SUPABASE (SỬA LỖI COLUMN)</h4>
                  </div>
-                 <p className="text-slate-400 text-sm font-medium italic leading-relaxed">Sử dụng đoạn mã này để sửa lỗi thiếu cột 'created_at', 'tasks_today' và đồng bộ mọi bảng cần thiết.</p>
+                 <p className="text-slate-400 text-sm font-medium italic leading-relaxed">Sử dụng đoạn mã này để sửa lỗi thiếu cột 'created_at', 'tasks_today' và đồng bộ mọi bảng cần thiết. <b>Hãy copy và chạy trong SQL Editor của Supabase.</b></p>
                  <div className="relative group">
                     <pre className="w-full bg-black/80 border border-slate-800 rounded-2xl p-8 text-blue-400 font-mono text-[10px] overflow-x-auto max-h-72 italic">
                        {`CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -512,62 +542,22 @@ CREATE TABLE IF NOT EXISTS public.users_data (
     reset_code TEXT
 );
 
--- Bảng withdrawals
-CREATE TABLE IF NOT EXISTS public.withdrawals (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id TEXT REFERENCES public.users_data(id),
-    user_name TEXT,
-    amount NUMERIC,
-    type TEXT,
-    status TEXT DEFAULT 'pending',
-    details TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Bảng ads (Khắc phục lỗi thiếu created_at)
-CREATE TABLE IF NOT EXISTS public.ads (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title TEXT,
-    image_url TEXT,
-    target_url TEXT,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Bảng announcements
-CREATE TABLE IF NOT EXISTS public.announcements (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title TEXT,
-    content TEXT,
-    priority TEXT DEFAULT 'low',
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Bảng giftcodes
-CREATE TABLE IF NOT EXISTS public.giftcodes (
-    code TEXT PRIMARY KEY,
-    amount NUMERIC,
-    max_uses INTEGER,
-    used_by JSONB DEFAULT '[]'::jsonb,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- CẬP NHẬT CỘT CHO CÁC BẢNG ĐÃ TỒN TẠI
-ALTER TABLE public.users_data ADD COLUMN IF NOT EXISTS tasks_today INTEGER DEFAULT 0;
-ALTER TABLE public.users_data ADD COLUMN IF NOT EXISTS tasks_week INTEGER DEFAULT 0;
-ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
-ALTER TABLE public.announcements ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-ALTER TABLE public.giftcodes ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-
--- Tắt RLS
-ALTER TABLE public.users_data DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.withdrawals DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.ads DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.announcements DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.giftcodes DISABLE ROW LEVEL SECURITY;`}
+-- REPAIR: TỰ ĐỘNG THÊM CỘT BỊ THIẾU
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ads' AND column_name='created_at') THEN
+        ALTER TABLE public.ads ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ads' AND column_name='is_active') THEN
+        ALTER TABLE public.ads ADD COLUMN is_active BOOLEAN DEFAULT true;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='announcements' AND column_name='created_at') THEN
+        ALTER TABLE public.announcements ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='giftcodes' AND column_name='created_at') THEN
+        ALTER TABLE public.giftcodes ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+    END IF;
+END $$;`}
                     </pre>
                     <button onClick={copySql} className="absolute top-4 right-4 p-4 bg-slate-900/80 border border-white/5 rounded-xl text-slate-400 hover:text-white transition-all shadow-2xl flex items-center gap-2 font-black uppercase text-[10px]">
                        {sqlCopied ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}

@@ -1,11 +1,11 @@
+
 import { BLOG_DESTINATION, TASK_RATES } from '../constants.tsx';
 
 /**
- * Silent Redirect 9.0:
+ * Silent Redirect 10.0:
  * - Đối với TrafficTot: Sử dụng endpoint /redirect để trình duyệt tự xử lý 302.
- * - Đối với LayMaNet: Bóc tách trường 'html' từ JSON.
- * - Đối với các cổng khác: Bóc tách JSON qua proxy và mở link rút gọn ngay lập tức.
- * - Đảm bảo không hiện trang API JSON thô cho người dùng.
+ * - Đối với các cổng khác: Bóc tách JSON qua proxy và tự động chuyển hướng tab.
+ * - Thuật toán bóc tách được tinh chỉnh cho: Link4M, YeuLink, YeuMoney, XLink, LayMaNet.
  */
 export const openTaskLink = async (taskId: number, userId: string, token: string) => {
   const task = TASK_RATES[taskId];
@@ -40,57 +40,89 @@ export const openTaskLink = async (taskId: number, userId: string, token: string
 
   if (!apiUrl) return;
 
-  // Mở tab mới ngay lập tức để tránh Popup Blocker (trình duyệt cho phép mở tab trắng khi click)
+  // Mở tab mới ngay lập tức với giao diện Loading chuyên nghiệp
   const newWindow = window.open('about:blank', '_blank');
   if (newWindow) {
     newWindow.document.write(`
-      <style>
-        body { 
-          background: #02040a; 
-          color: #3b82f6; 
-          display: flex; 
-          flex-direction: column;
-          align-items: center; 
-          justify-content: center; 
-          height: 100vh; 
-          margin: 0;
-          font-family: 'Inter', -apple-system, sans-serif;
-        }
-        .loader { 
-          border: 4px solid rgba(59, 130, 246, 0.1); 
-          border-top: 4px solid #3b82f6; 
-          border-radius: 50%; 
-          width: 60px; 
-          height: 60px; 
-          animation: spin 1s linear infinite; 
-          margin-bottom: 25px;
-          box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .text { 
-          text-transform: uppercase; 
-          font-weight: 900; 
-          font-style: italic; 
-          letter-spacing: 4px; 
-          font-size: 13px;
-          text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
-        }
-        .sub-text {
-          margin-top: 15px;
-          color: #475569;
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 1px;
-          text-align: center;
-        }
-      </style>
-      <div class="loader"></div>
-      <div class="text">NOVA CLOUD SYNC</div>
-      <div class="sub-text">ĐANG KẾT NỐI MÁY CHỦ NHIỆM VỤ...</div>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Nova Cloud Sync - Đang kết nối...</title>
+        <style>
+          body { 
+            background: #03050a; 
+            color: #3b82f6; 
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+          }
+          .loader { 
+            border: 4px solid rgba(59, 130, 246, 0.05); 
+            border-top: 4px solid #3b82f6; 
+            border-radius: 50%; 
+            width: 70px; 
+            height: 70px; 
+            animation: spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite; 
+            margin-bottom: 30px;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.1);
+          }
+          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+          .text { 
+            text-transform: uppercase; 
+            font-weight: 900; 
+            font-style: italic; 
+            letter-spacing: 5px; 
+            font-size: 14px;
+            text-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+            animation: pulse 2s infinite;
+          }
+          @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+          .sub-text {
+            margin-top: 20px;
+            color: #475569;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-align: center;
+            max-width: 250px;
+            line-height: 1.6;
+          }
+          .progress {
+            width: 200px;
+            height: 2px;
+            background: rgba(255,255,255,0.05);
+            margin-top: 30px;
+            position: relative;
+            overflow: hidden;
+            border-radius: 10px;
+          }
+          .progress-bar {
+            position: absolute;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: #3b82f6;
+            animation: loading 2s infinite;
+          }
+          @keyframes loading { 0% { left: -100%; } 100% { left: 100%; } }
+        </style>
+      </head>
+      <body>
+        <div class="loader"></div>
+        <div class="text">NOVA CLOUD SYNC</div>
+        <div class="sub-text">HỆ THỐNG ĐANG BÓC TÁCH DỮ LIỆU TỪ MÁY CHỦ ${task.name}...</div>
+        <div class="progress"><div class="progress-bar"></div></div>
+      </body>
+      </html>
     `);
   }
 
-  // Nếu là TrafficTot (endpoint redirect trả về 302), chuyển hướng tab đã mở ngay
+  // Nếu là TrafficTot Redirect, chuyển hướng thẳng
   if (isDirectRedirect) {
     if (newWindow) {
       newWindow.location.href = apiUrl;
@@ -98,28 +130,39 @@ export const openTaskLink = async (taskId: number, userId: string, token: string
     return;
   }
 
-  // Đối với các cổng trả về JSON, dùng proxy để bóc tách và tự động chuyển hướng
+  // Đối với các cổng trả về JSON, dùng proxy bóc tách link
   const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
 
   try {
     const response = await fetch(proxyUrl);
-    if (!response.ok) throw new Error("Proxy connection error");
+    if (!response.ok) throw new Error("Proxy error");
     
     const proxyData = await response.json();
-    if (!proxyData.contents) throw new Error("Empty response contents");
+    if (!proxyData.contents) throw new Error("Empty content");
     
     let realLink = "";
     try {
       const data = JSON.parse(proxyData.contents);
-      // Thuật toán bóc tách link rút gọn từ JSON của các nhà cung cấp
-      realLink = data.html || // LayMaNet
-                 data.shortenedUrl || // Link4M, YeuLink
-                 data.link || // XLink, YeuMoney
-                 data.short_url || // TrafficTot JSON mode
+      
+      // Thuật toán bóc tách thông minh cho mọi nhà cung cấp
+      // Cấu trúc của Link4M, YeuLink: { status: "success", shortenedUrl: "..." }
+      // Cấu trúc của YeuMoney, XLink: { status: "success", link: "..." }
+      // Cấu trúc của LayMaNet: { status: "success", html: "..." }
+      
+      realLink = data.shortenedUrl || 
+                 data.link || 
+                 data.html || 
+                 data.short_url || 
                  data.url || 
-                 (data.data && (data.data.html || data.data.shortenedUrl || data.data.link || data.data.short_url || data.data.url));
+                 (data.data && (data.data.shortenedUrl || data.data.link || data.data.html || data.data.url));
+
+      // Xử lý riêng LayMaNet nếu nó trả về full thẻ <a>
+      if (realLink && realLink.includes('<a href="')) {
+        const match = realLink.match(/href="([^"]+)"/);
+        if (match) realLink = match[1];
+      }
     } catch (e) {
-      // Dự phòng: Nếu response không phải JSON mà là URL text thô
+      // Nếu không phải JSON, kiểm tra xem có phải URL thô không
       const trimmed = proxyData.contents.trim();
       if (trimmed.startsWith('http')) {
         realLink = trimmed;
@@ -131,13 +174,13 @@ export const openTaskLink = async (taskId: number, userId: string, token: string
         newWindow.location.href = realLink;
       }
     } else {
-      // Bất khả kháng mới mở thẳng apiUrl (ví cập nhật thất bại)
+      // Nếu bóc tách thất bại, mở thẳng apiUrl (không tối ưu nhưng vẫn chạy được)
       if (newWindow) {
         newWindow.location.href = apiUrl;
       }
     }
   } catch (error) {
-    console.warn("Lỗi bóc tách link, mở link API trực tiếp làm dự phòng:", error);
+    console.error("Lỗi bóc tách link:", error);
     if (newWindow) {
       newWindow.location.href = apiUrl;
     }

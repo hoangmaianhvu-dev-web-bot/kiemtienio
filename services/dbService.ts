@@ -160,13 +160,16 @@ export const dbService = {
   },
 
   getAnnouncements: async (all = false) => {
-    let q = supabase.from('announcements').select('*');
     try {
-      q = q.order('created_at', { ascending: false });
+      let q = supabase.from('announcements').select('*');
       if (!all) q = q.eq('is_active', true);
-      const { data, error } = await q;
+      const { data, error } = await q.order('created_at', { ascending: false });
       return error ? handleDbError(error) : (data || []).map(a => ({ ...a, createdAt: a.created_at, isActive: a.is_active }));
-    } catch (e) { return []; }
+    } catch (e) {
+      // Dự phòng nếu cột created_at chưa được tạo
+      const { data } = await supabase.from('announcements').select('*');
+      return (data || []).map(a => ({ ...a, createdAt: a.created_at, isActive: a.is_active }));
+    }
   },
 
   saveAnnouncement: async (ann: any) => {
@@ -184,13 +187,15 @@ export const dbService = {
   },
 
   getAds: async (all = false) => {
-    let q = supabase.from('ads').select('*');
     try {
-      q = q.order('created_at', { ascending: false });
+      let q = supabase.from('ads').select('*');
       if (!all) q = q.eq('is_active', true);
-      const { data, error } = await q;
+      const { data, error } = await q.order('created_at', { ascending: false });
       return error ? handleDbError(error) : (data || []).map(ad => ({ ...ad, imageUrl: ad.image_url, targetUrl: ad.target_url, isActive: ad.is_active }));
-    } catch (e) { return []; }
+    } catch (e) {
+      const { data } = await supabase.from('ads').select('*');
+      return (data || []).map(ad => ({ ...ad, imageUrl: ad.image_url, targetUrl: ad.target_url, isActive: ad.is_active }));
+    }
   },
 
   saveAd: async (ad: any) => {
@@ -206,13 +211,15 @@ export const dbService = {
   },
 
   getGiftcodes: async (all = false) => {
-    let q = supabase.from('giftcodes').select('*');
     try {
-      q = q.order('created_at', { ascending: false });
+      let q = supabase.from('giftcodes').select('*');
       if (!all) q = q.eq('is_active', true);
-      const { data, error } = await q;
+      const { data, error } = await q.order('created_at', { ascending: false });
       return error ? handleDbError(error) : (data || []).map(g => ({ ...g, maxUses: g.max_uses, usedBy: g.used_by || [], isActive: g.is_active }));
-    } catch (e) { return []; }
+    } catch (e) {
+      const { data } = await supabase.from('giftcodes').select('*');
+      return (data || []).map(g => ({ ...g, maxUses: g.max_uses, usedBy: g.used_by || [], isActive: g.is_active }));
+    }
   },
 
   addGiftcode: async (gc: any) => {
@@ -237,6 +244,9 @@ export const dbService = {
     try {
       const { data, error } = await supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(50);
       return error ? handleDbError(error) : (data || []).map(l => ({ ...l, createdAt: l.created_at }));
-    } catch (e) { return []; }
+    } catch (e) {
+      const { data } = await supabase.from('activity_logs').select('*').limit(50);
+      return (data || []).map(l => ({ ...l, createdAt: l.created_at }));
+    }
   }
 };
