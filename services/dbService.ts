@@ -3,13 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 import { User, Giftcode, WithdrawalRequest, AdminNotification, Announcement, AdBanner, ActivityLog } from '../types.ts';
 import { REFERRAL_REWARD, RATE_VND_TO_POINT } from '../constants.tsx';
 
-// Khởi tạo Supabase Client
-// Fix: Use process.env directly instead of window.process.env
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Mapping function to convert DB snake_case to Frontend camelCase
 const mapUser = (u: any): User => {
   if (!u) return null as any;
   return {
@@ -30,57 +27,74 @@ const mapUser = (u: any): User => {
 };
 
 export const dbService = {
-  // --- AUTH ---
   signup: async (email: string, pass: string, fullname: string, refId?: string) => {
-    // Kiểm tra tồn tại
-    const { data: existing } = await supabase.from('users').select('id').eq('email', email).single();
-    if (existing) return { success: false, message: 'Email đã tồn tại!' };
+    try {
+      const { data: existing, error: checkError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
 
-    const userId = Math.random().toString(36).substr(2, 9).toUpperCase();
-    const { count } = await supabase.from('users').select('id', { count: 'exact', head: true });
-    const isFirst = (count || 0) === 0;
-
-    const newUser = {
-      id: userId,
-      email,
-      password_hash: btoa(pass),
-      fullname: fullname.toUpperCase(),
-      balance: 0,
-      total_earned: 0,
-      is_admin: isFirst,
-      is_banned: false,
-      join_date: new Date().toISOString(),
-      referred_by: refId || null,
-      bank_info: '',
-      id_game: '',
-      task_counts: {}
-    };
-
-    const { error } = await supabase.from('users').insert([newUser]);
-    if (error) return { success: false, message: error.message };
-
-    // Xử lý referral bonus
-    if (refId) {
-      const { data: refUser } = await supabase.from('users').select('*').eq('id', refId).single();
-      if (refUser) {
-        await supabase.from('users').update({
-          balance: (refUser.balance || 0) + REFERRAL_REWARD,
-          total_earned: (refUser.total_earned || 0) + REFERRAL_REWARD,
-          referral_count: (refUser.referral_count || 0) + 1,
-          referral_bonus: (refUser.referral_bonus || 0) + REFERRAL_REWARD
-        }).eq('id', refId);
+      if (checkError) {
+        if (checkError.message.includes('cache')) {
+          return { success: false, message: 'Lỗi hệ thống: Bảng users chưa được tạo trên Supabase!' };
+        }
+        return { success: false, message: checkError.message };
       }
+      
+      if (existing) return { success: false, message: 'Email đã tồn tại!' };
+
+      const userId = Math.random().toString(36).substr(2, 9).toUpperCase();
+      
+      const { count } = await supabase
+        .from('users')
+        .select('id', { count: 'exact', head: true });
+      
+      const isFirst = (count || 0) === 0;
+
+      const newUser = {
+        id: userId,
+        email,
+        password_hash: btoa(pass),
+        fullname: fullname.toUpperCase(),
+        balance: 0,
+        total_earned: 0,
+        is_admin: isFirst,
+        is_banned: false,
+        join_date: new Date().toISOString(),
+        referred_by: refId || null,
+        bank_info: '',
+        id_game: '',
+        task_counts: {}
+      };
+
+      const { error: insertError } = await supabase.from('users').insert([newUser]);
+      if (insertError) return { success: false, message: insertError.message };
+
+      if (refId) {
+        const { data: refUser } = await supabase.from('users').select('*').eq('id', refId).maybeSingle();
+        if (refUser) {
+          await supabase.from('users').update({
+            balance: (refUser.balance || 0) + REFERRAL_REWARD,
+            total_earned: (refUser.total_earned || 0) + REFERRAL_REWARD,
+            referral_count: (refUser.referral_count || 0) + 1,
+            referral_bonus: (refUser.referral_bonus || 0) + REFERRAL_REWARD
+          }).eq('id', refId);
+        }
+      }
+
+      await dbService.addNotification({
+        type: 'auth',
+        title: 'HỘI VIÊN MỚI',
+        content: `${fullname.toUpperCase()} vừa gia nhập hệ thống.`,
+        userId: userId,
+        userName: fullname.toUpperCase()
+      });
+
+      return { success: true, message: 'Đăng ký thành công!' };
+    } catch (err: any) {
+      return { success: false, message: 'Lỗi kết nối: ' + err.message };
     }
-
-    await dbService.addNotification({
-      type: 'auth',
-      title: 'HỘI VIÊN MỚI',
-      content: `${fullname.toUpperCase()} vừa gia nhập hệ thống.`,
-      userId: userId,
-      userName: fullname.toUpperCase()
-    });
-
-    return { success: true, message: 'Đăng ký thành công!' };
   },
 
   login: async (email: string, pass: string) => {
@@ -92,7 +106,6 @@ export const dbService = {
       .maybeSingle();
 
     if (error || !user) return null;
-
     localStorage.setItem('nova_session_id', user.id);
     return mapUser(user);
   },
@@ -110,60 +123,32 @@ export const dbService = {
   },
 
   getTotalUserCount: async () => {
-    const { count, error } = await supabase.from('users').select('*', { count: 'exact', head: true });
-    if (error) return 0;
-    return count || 0;
+    try {
+      const { count } = await supabase.from('users').select('*', { count: 'exact', head: true });
+      return count || 0;
+    } catch {
+      return 0;
+    }
   },
 
-  // --- USER DATA ---
   updateUser: async (id: string, updates: Partial<User>) => {
     const dbUpdates: any = { ...updates };
+    if (updates.totalEarned !== undefined) dbUpdates.total_earned = updates.totalEarned;
+    if (updates.isBanned !== undefined) dbUpdates.is_banned = updates.isBanned;
+    if (updates.isAdmin !== undefined) dbUpdates.is_admin = updates.isAdmin;
+    if (updates.lastTaskDate !== undefined) dbUpdates.last_task_date = updates.lastTaskDate;
+    if (updates.taskCounts !== undefined) dbUpdates.task_counts = updates.taskCounts;
+    if (updates.bankInfo !== undefined) dbUpdates.bank_info = updates.bankInfo;
+    if (updates.idGame !== undefined) dbUpdates.id_game = updates.idGame;
     
-    // Ánh xạ ngược camelCase sang snake_case cho Database
-    if (updates.totalEarned !== undefined) {
-      dbUpdates.total_earned = updates.totalEarned;
-      delete dbUpdates.totalEarned;
-    }
-    if (updates.isBanned !== undefined) {
-      dbUpdates.is_banned = updates.isBanned;
-      delete dbUpdates.isBanned;
-    }
-    if (updates.isAdmin !== undefined) {
-      dbUpdates.is_admin = updates.isAdmin;
-      delete dbUpdates.isAdmin;
-    }
-    if (updates.lastTaskDate !== undefined) {
-      dbUpdates.last_task_date = updates.lastTaskDate;
-      delete dbUpdates.lastTaskDate;
-    }
-    if (updates.taskCounts !== undefined) {
-      dbUpdates.task_counts = updates.taskCounts;
-      delete dbUpdates.taskCounts;
-    }
-    if (updates.bankInfo !== undefined) {
-      dbUpdates.bank_info = updates.bankInfo;
-      delete dbUpdates.bankInfo;
-    }
-    if (updates.idGame !== undefined) {
-      dbUpdates.id_game = updates.idGame;
-      delete dbUpdates.idGame;
-    }
-    if (updates.joinDate !== undefined) {
-      dbUpdates.join_date = updates.joinDate;
-      delete dbUpdates.joinDate;
-    }
-    if (updates.referralCount !== undefined) {
-      dbUpdates.referral_count = updates.referralCount;
-      delete dbUpdates.referralCount;
-    }
-    if (updates.referralBonus !== undefined) {
-      dbUpdates.referral_bonus = updates.referralBonus;
-      delete dbUpdates.referralBonus;
-    }
-    if (updates.referredBy !== undefined) {
-      dbUpdates.referred_by = updates.referredBy;
-      delete dbUpdates.referredBy;
-    }
+    // Clean keys that shouldn't be updated directly via camelCase
+    delete dbUpdates.totalEarned;
+    delete dbUpdates.isBanned;
+    delete dbUpdates.isAdmin;
+    delete dbUpdates.lastTaskDate;
+    delete dbUpdates.taskCounts;
+    delete dbUpdates.bankInfo;
+    delete dbUpdates.idGame;
 
     await supabase.from('users').update(dbUpdates).eq('id', id);
   },
@@ -174,7 +159,6 @@ export const dbService = {
     return (data || []).map(mapUser);
   },
 
-  // --- WITHDRAWALS ---
   getWithdrawals: async (userId?: string) => {
     let query = supabase.from('withdrawals').select('*').order('created_at', { ascending: false });
     if (userId) query = query.eq('user_id', userId);
@@ -219,7 +203,6 @@ export const dbService = {
     }
   },
 
-  // --- NOTIFICATIONS ---
   getNotifications: async (userId?: string) => {
     let query = supabase.from('notifications').select('*').order('created_at', { ascending: false });
     if (userId) query = query.or(`user_id.eq.${userId},user_id.eq.all`);
@@ -257,7 +240,6 @@ export const dbService = {
     await supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   },
 
-  // --- ANNOUNCEMENTS & ADS ---
   getAnnouncements: async () => {
     const { data } = await supabase.from('announcements').select('*').order('created_at', { ascending: false });
     return (data || []).map(a => ({
@@ -267,13 +249,12 @@ export const dbService = {
   },
 
   saveAnnouncement: async (ann: any) => {
-    const dbAnn = {
+    await supabase.from('announcements').insert([{
       title: ann.title,
       content: ann.content,
       priority: ann.priority || 'low',
       created_at: ann.createdAt || new Date().toISOString()
-    };
-    await supabase.from('announcements').insert([dbAnn]);
+    }]);
   },
 
   getAds: async (includeInactive = false) => {
@@ -290,17 +271,15 @@ export const dbService = {
   },
 
   saveAd: async (ad: any) => {
-    const dbAd = {
+    await supabase.from('ads').upsert([{
       title: ad.title,
       image_url: ad.imageUrl,
       target_url: ad.targetUrl,
       is_active: ad.isActive ?? true,
       is_hidden: ad.isHidden ?? false
-    };
-    await supabase.from('ads').upsert([dbAd]);
+    }]);
   },
 
-  // --- GIFTCODES ---
   getGiftcodes: async () => {
     const { data } = await supabase.from('giftcodes').select('*').order('created_at', { ascending: false });
     return (data || []).map(g => ({
@@ -315,7 +294,7 @@ export const dbService = {
     await supabase.from('giftcodes').insert([{
       code: gc.code,
       amount: gc.amount,
-      max_uses: gc.max_uses,
+      max_uses: gc.maxUses,
       used_by: [],
       created_at: new Date().toISOString()
     }]);
@@ -329,7 +308,6 @@ export const dbService = {
     }
   },
 
-  // --- LOGS ---
   logActivity: async (userId: string, userName: string, action: string, details: string) => {
     await supabase.from('activity_logs').insert([{
       user_id: userId,
