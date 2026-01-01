@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User } from '../types.ts';
-import { TASK_RATES, formatK } from '../constants.tsx';
+import { TASK_RATES, formatK, DAILY_TASK_LIMIT } from '../constants.tsx';
 import { dbService } from '../services/dbService.ts';
 import { openTaskLink } from '../services/taskService.ts';
 import { 
@@ -14,7 +14,8 @@ import {
   ShieldAlert,
   CheckCircle2,
   Flame,
-  MousePointer2
+  MousePointer2,
+  LockKeyhole
 } from 'lucide-react';
 
 interface Props {
@@ -36,7 +37,6 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [generatingGate, setGeneratingGate] = useState<number | null>(null);
 
-  // Khôi phục nhiệm vụ đang treo nếu có (trong vòng 30 phút)
   useEffect(() => {
     const saved = localStorage.getItem('nova_pending_task');
     if (saved) {
@@ -51,6 +51,7 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
 
   const generateToken = () => {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    // Tạo mã bảo mật duy nhất cho mỗi phiên nhiệm vụ
     return `NOVA-${Array.from({ length: 8 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join("")}`;
   };
 
@@ -59,12 +60,11 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
     const currentCount = user.taskCounts[gate.name] || 0;
     
     if (currentCount >= gate.limit) return;
-    if (user.tasksToday >= 20) return alert("Bạn đã đạt giới hạn 20 nhiệm vụ/ngày!");
+    if (user.tasksToday >= DAILY_TASK_LIMIT) return alert(`Bạn đã đạt giới hạn tối đa ${DAILY_TASK_LIMIT} nhiệm vụ/ngày!`);
 
     setGeneratingGate(id);
     const token = generateToken();
     
-    // Lưu thông tin vào bộ nhớ tạm trước khi mở link
     const taskData: PendingTask = { 
       gateId: id, 
       gateName: gate.name, 
@@ -76,10 +76,9 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
     localStorage.setItem('nova_pending_task', JSON.stringify(taskData));
     setActiveTask(taskData);
     
-    // Ghi log hoạt động
     dbService.logActivity(user.id, user.fullname, 'Bắt đầu nhiệm vụ', `Gate: ${gate.name}`);
 
-    // Mở link nhiệm vụ (Tab mới)
+    // Mở link nhiệm vụ qua API nhà cung cấp
     openTaskLink(id, user.id, token);
     
     setTimeout(() => setGeneratingGate(null), 1000);
@@ -90,8 +89,9 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
     setStatus('loading');
 
     setTimeout(() => {
-      // Kiểm tra mã nhập vào có khớp với Security Token đã tạo hay không
-      if (inputToken.trim().toUpperCase() === activeTask.token) {
+      // Đối soát mã Key từ người dùng nhập với Token bảo mật được tạo lúc đầu
+      const input = inputToken.trim().toUpperCase();
+      if (input === activeTask.token || input === activeTask.token.replace('NOVA-', '')) {
         const newTaskCounts = { ...user.taskCounts };
         newTaskCounts[activeTask.gateName] = (newTaskCounts[activeTask.gateName] || 0) + 1;
 
@@ -118,33 +118,33 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
         setStatus('error');
         setTimeout(() => setStatus('idle'), 3000);
       }
-    }, 1500);
+    }, 1200);
   };
 
   return (
-    <div className="space-y-12 animate-in fade-in duration-700">
-      {/* Banner Khai Thác */}
-      <div className="relative overflow-hidden glass-card p-12 md:p-16 rounded-[4rem] border border-white/5 shadow-3xl bg-[#0a0f18] group">
+    <div className="space-y-12 animate-in fade-in duration-700 pb-20">
+      {/* Banner Khai Thác Cyber-Luxury */}
+      <div className="relative overflow-hidden glass-card p-12 md:p-16 rounded-[4rem] border border-white/5 shadow-[0_0_50px_rgba(59,130,246,0.1)] bg-[#0a0f18] group">
         <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none group-hover:rotate-12 transition-transform duration-1000">
           <Cpu className="w-80 h-80 text-blue-500" />
         </div>
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-12">
           <div className="max-w-xl space-y-6">
-            <div className="inline-flex items-center gap-3 px-6 py-2 bg-blue-600/10 border border-blue-500/20 rounded-2xl text-blue-400 text-xs font-black uppercase tracking-[0.4em] italic shadow-glow-blue">
-              <ShieldCheck className="w-4 h-4" /> MINING CORE VISION 1.0
+            <div className="inline-flex items-center gap-3 px-6 py-2 bg-blue-600/10 border border-blue-500/20 rounded-2xl text-blue-400 text-[10px] font-black uppercase tracking-[0.4em] italic shadow-glow-blue">
+              <ShieldCheck className="w-4 h-4" /> SECURE MINING VISION 2.0
             </div>
             <h1 className="text-6xl md:text-8xl font-black text-white leading-none uppercase tracking-tighter italic drop-shadow-2xl">
-              CORE <span className="nova-gradient">MINING</span>
+              MINING <span className="nova-gradient">CORE</span>
             </h1>
             <p className="text-slate-400 text-lg font-medium leading-relaxed italic">
-              Vượt qua các thử thách liên kết để thu thập điểm thưởng Nova (P). Mọi giao dịch được bảo mật bởi hệ thống Security Token 256-bit.
+              Hệ thống khai thác điểm thưởng (P) thông qua các Node xác thực bảo mật. Đảm bảo KEY nhập vào khớp với Security Token để nhận thưởng.
             </p>
           </div>
           
-          <div className="w-full lg:w-[380px] glass-card p-10 rounded-[3.5rem] border border-white/10 bg-slate-950/50 backdrop-blur-3xl shadow-2xl relative overflow-hidden">
+          <div className="w-full lg:w-[380px] glass-card p-10 rounded-[3.5rem] border border-white/10 bg-slate-950/50 backdrop-blur-3xl shadow-2xl">
              <div className="flex justify-between items-end mb-8">
                 <div className="space-y-1">
-                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block italic">Hoàn thành hôm nay</span>
+                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block italic">Tiến độ hôm nay ({user.tasksToday}/{DAILY_TASK_LIMIT})</span>
                    <h2 className="text-6xl font-black text-white italic tracking-tighter">{user.tasksToday || 0}</h2>
                 </div>
                 <div className="p-4 bg-blue-600/20 rounded-2xl text-blue-500 border border-blue-500/20">
@@ -152,13 +152,13 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
                 </div>
              </div>
              <div className="h-2 w-full bg-slate-900 rounded-full overflow-hidden border border-white/5">
-                <div className="h-full bg-blue-600 shadow-[0_0_15px_rgba(59,130,246,0.6)] transition-all" style={{ width: `${Math.min((user.tasksToday || 0) * 5, 100)}%` }} />
+                <div className="h-full bg-blue-600 shadow-[0_0_15px_rgba(59,130,246,0.6)] transition-all" style={{ width: `${Math.min((user.tasksToday / DAILY_TASK_LIMIT) * 100, 100)}%` }} />
              </div>
           </div>
         </div>
       </div>
 
-      {/* Danh sách Nhiệm vụ */}
+      {/* Grid Danh sách Nhiệm vụ Node */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {Object.entries(TASK_RATES).map(([idStr, gate]) => {
           const id = parseInt(idStr);
@@ -171,10 +171,10 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
               <div className="relative z-10">
                 <div className="flex justify-between items-start mb-8">
                   <div>
-                    <h3 className="font-black text-3xl text-white uppercase italic tracking-tighter">{gate.name}</h3>
-                    <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest italic">NODE #{id.toString().padStart(2, '0')} ACTIVE</span>
+                    <h3 className="font-black text-3xl text-white uppercase italic tracking-tighter group-hover:text-blue-400 transition-colors">{gate.name}</h3>
+                    <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest italic">NODE #{id.toString().padStart(2, '0')} ACCESS</span>
                   </div>
-                  <div className={`p-3 rounded-2xl bg-slate-950 border border-white/10 ${isFull ? 'text-red-500' : 'text-blue-500'}`}>
+                  <div className={`p-3 rounded-2xl bg-slate-950 border border-white/10 ${isFull ? 'text-red-500' : 'text-blue-500 shadow-glow-blue'}`}>
                     {isFull ? <Lock className="w-6 h-6" /> : <Zap className="w-6 h-6" />}
                   </div>
                 </div>
@@ -194,11 +194,11 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
               <button 
                 onClick={() => startTask(id)} 
                 disabled={isFull || isGenerating}
-                className={`w-full h-16 rounded-2xl font-black uppercase italic text-xs tracking-[0.2em] transition-all flex items-center justify-center gap-3 relative overflow-hidden ${isFull ? 'bg-slate-900 text-slate-600' : 'bg-white text-black hover:bg-blue-600 hover:text-white shadow-xl active:scale-95'}`}
+                className={`w-full h-16 rounded-2xl font-black uppercase italic text-[10px] tracking-[0.2em] transition-all flex items-center justify-center gap-3 relative overflow-hidden ${isFull ? 'bg-slate-900 text-slate-600' : 'bg-white text-black hover:bg-blue-600 hover:text-white shadow-xl active:scale-95'}`}
               >
-                {isGenerating ? <Loader2 className="w-6 h-6 animate-spin" /> : isFull ? 'QUOTA FULL' : (
+                {isGenerating ? <Loader2 className="w-6 h-6 animate-spin" /> : isFull ? 'NODE EXHAUSTED' : (
                   <>
-                    <span>MỞ CỔNG KHAI THÁC</span>
+                    <span>KHỞI CHẠY NODE</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-2 transition-transform" />
                   </>
                 )}
@@ -208,70 +208,69 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
         })}
       </div>
 
-      {/* Terminal Xác thực */}
-      {activeTask && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-in fade-in duration-500">
-          <div className="absolute inset-0 bg-black/95 backdrop-blur-3xl" onClick={() => setActiveTask(null)}></div>
-          <div className="glass-card w-full max-w-xl p-12 md:p-16 rounded-[4rem] border border-blue-500/30 relative shadow-[0_0_100px_rgba(59,130,246,0.15)] bg-[#0a0f18] overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50"></div>
-            
-            <div className="text-center space-y-8 mb-12">
-               <div className="w-24 h-24 bg-blue-600/10 rounded-[2.5rem] flex items-center justify-center mx-auto border border-blue-500/20">
-                  <MousePointer2 className="w-12 h-12 text-blue-500 animate-bounce" />
-               </div>
-               <div>
-                  <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter mb-2">SECURITY TERMINAL</h2>
-                  <p className="text-slate-500 text-xs font-black uppercase tracking-[0.3em] italic">Nhập mã định danh (KEY) từ Blog để nhận thưởng</p>
-               </div>
-            </div>
+      {/* Security Terminal (Verification Panel) */}
+      <div className="relative pt-10">
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#06080c] px-6 z-10 border border-blue-500/20 rounded-full py-1">
+          <span className="text-[10px] font-black text-blue-500 tracking-[0.4em] uppercase italic">SECURITY TERMINAL</span>
+        </div>
+        
+        <div className="glass-card p-10 md:p-14 rounded-[4rem] border border-blue-500/20 bg-gradient-to-b from-blue-900/10 to-transparent backdrop-blur-3xl shadow-3xl">
+          <div className="flex flex-col items-center text-center gap-8 max-w-2xl mx-auto">
+             <div className="w-24 h-24 bg-blue-600/10 rounded-[2.5rem] flex items-center justify-center border border-blue-500/20 shadow-glow-blue">
+                {status === 'loading' ? <Loader2 className="w-12 h-12 text-blue-500 animate-spin" /> : <LockKeyhole className="w-12 h-12 text-blue-500 animate-pulse" />}
+             </div>
+             
+             <div className="space-y-2">
+                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">XÁC THỰC MÃ KEY</h2>
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] italic">NHẬP MÃ SECURITY KEY TỪ BLOG ĐỂ KÍCH HOẠT NODE</p>
+             </div>
 
-            <div className="space-y-8">
-              <input 
-                type="text" 
-                value={inputToken} 
-                onChange={e => setInputToken(e.target.value)} 
-                placeholder="NOVA-XXXX-XXXX" 
-                className="w-full bg-slate-950 border-2 border-slate-800 rounded-3xl px-8 py-8 text-white text-center font-black tracking-[0.3em] outline-none transition-all text-xl uppercase focus:border-blue-600 shadow-3xl"
-              />
+             <div className="w-full space-y-6">
+                <div className="relative group">
+                  <input 
+                    type="text" 
+                    value={inputToken}
+                    onChange={(e) => setInputToken(e.target.value)}
+                    placeholder="NOVA-XXXX-XXXX" 
+                    className="w-full bg-slate-950 border-2 border-slate-900 rounded-3xl px-8 py-7 text-white text-center font-black tracking-[0.3em] outline-none transition-all text-xl uppercase focus:border-blue-600 shadow-inner group-hover:border-blue-900"
+                  />
+                  <div className="absolute right-6 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-blue-500 animate-ping"></div>
+                </div>
 
-              <div className="grid grid-cols-2 gap-6">
-                <button 
-                  onClick={() => setActiveTask(null)}
-                  className="py-6 rounded-2xl bg-slate-900 border border-white/5 text-slate-500 font-black uppercase italic tracking-widest text-[10px] hover:bg-slate-800 transition-all"
-                >
-                  ĐÓNG
-                </button>
                 <button 
                   onClick={verifyTask}
-                  className="bg-blue-600 hover:bg-blue-500 text-white font-black py-6 rounded-2xl shadow-2xl shadow-blue-600/40 uppercase tracking-[0.2em] transition-all italic active:scale-95 flex items-center justify-center gap-3"
+                  disabled={status === 'loading' || !inputToken.trim() || !activeTask}
+                  className={`w-full py-7 rounded-3xl font-black text-xs tracking-[0.3em] transition-all flex items-center justify-center gap-4 italic shadow-2xl ${
+                    status === 'loading' || !activeTask
+                    ? 'bg-slate-900 text-slate-700 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-800 text-white hover:brightness-125 active:scale-95'
+                  }`}
                 >
-                  {status === 'loading' ? <Loader2 className="w-7 h-7 animate-spin" /> : (
-                    <>
-                      <span>XÁC THỰC (VERIFY)</span>
-                      <CheckCircle2 className="w-5 h-5" />
-                    </>
-                  )}
+                  {status === 'loading' ? 'XÁC THỰC...' : 'KÍCH HOẠT NODE NHẬN THƯỞNG'}
                 </button>
-              </div>
-            </div>
 
-            {status === 'success' && (
-              <div className="mt-8 text-emerald-500 font-black uppercase italic text-center text-xs tracking-widest animate-bounce">
-                NHẬN THƯỞNG THÀNH CÔNG +{activeTask.points.toLocaleString()} P!
-              </div>
-            )}
-            
-            {status === 'error' && (
-              <div className="mt-8 text-red-500 font-black uppercase italic text-center text-xs tracking-widest flex items-center justify-center gap-2">
-                <ShieldAlert className="w-4 h-4" /> MÃ XÁC THỰC KHÔNG HỢP LỆ!
-              </div>
-            )}
+                {status === 'success' && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 p-5 rounded-2xl flex items-center justify-center gap-3 text-emerald-500 font-black uppercase italic text-xs tracking-widest animate-bounce">
+                    <CheckCircle2 className="w-5 h-5" /> 💎 XÁC THỰC THÀNH CÔNG! ĐÃ CỘNG {activeTask?.points} P
+                  </div>
+                )}
+                
+                {status === 'error' && (
+                  <div className="bg-red-500/10 border border-red-500/20 p-5 rounded-2xl flex items-center justify-center gap-3 text-red-500 font-black uppercase italic text-xs tracking-widest">
+                    <ShieldAlert className="w-5 h-5" /> MÃ KEY KHÔNG CHÍNH XÁC! THỬ LẠI TRÊN BLOG.
+                  </div>
+                )}
+
+                {!activeTask && status !== 'success' && (
+                   <p className="text-slate-600 text-[9px] font-black uppercase tracking-widest italic animate-pulse">VUI LÒNG KHỞI CHẠY 1 NODE ĐỂ BẮT ĐẦU XÁC THỰC</p>
+                )}
+             </div>
           </div>
         </div>
-      )}
+      </div>
       
       <style>{`
-        .shadow-glow-blue { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+        .shadow-glow-blue { box-shadow: 0 0 20px rgba(59, 130, 246, 0.4); }
       `}</style>
     </div>
   );

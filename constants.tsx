@@ -23,6 +23,7 @@ export const POINT_EXCHANGE = 10;   // 1 VNĐ = 10 điểm
 export const RATE_VND_TO_POINT = 10;
 export const POINT_PER_DIAMOND = 2000; 
 export const REFERRAL_REWARD = 5000;
+export const DAILY_TASK_LIMIT = 20;
 
 export const WITHDRAW_MILESTONES = [5000, 10000, 20000, 50000, 100000, 200000, 500000];
 export const BLOG_DESTINATION = "https://avudev-verifi.blogspot.com/";
@@ -35,7 +36,12 @@ export const SOCIAL_LINKS = {
 
 /**
  * Danh sách 6 cổng nhiệm vụ chính thức
- * Cấu hình: ID, Tên, Thưởng (P), Giới hạn lượt, API Key
+ * 1. Link4M: 1320 P, Limit 2
+ * 2. YeuLink: 1320 P, Limit 4
+ * 3. YeuMoney: 1050 P, Limit 3
+ * 4. XLink: 1320 P, Limit 2
+ * 5. TrafficTot: 1320 P, Limit 5
+ * 6. LaymaNet: 1320 P, Limit 3
  */
 export const TASK_RATES: Record<number, { name: string, reward: number, limit: number, apiKey: string }> = {
   1: { name: "LINK4M", reward: 1320, limit: 2, apiKey: "68208afab6b8fc60542289b6" },
@@ -46,7 +52,6 @@ export const TASK_RATES: Record<number, { name: string, reward: number, limit: n
   6: { name: "LAYMANET", reward: 1320, limit: 3, apiKey: "ad22fab4209242db6c1bc093898fe2e8" }
 };
 
-// Map lại sang định dạng TaskGate cho UI cũ (nếu cần)
 export const TASK_GATES: (TaskGate & { id: number })[] = Object.entries(TASK_RATES).map(([id, data]) => ({
   id: parseInt(id),
   name: data.name,

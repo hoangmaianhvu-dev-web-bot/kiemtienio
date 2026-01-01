@@ -2,7 +2,7 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { User, AppView } from '../types.ts';
 import { dbService } from '../services/dbService.ts';
-import { formatK } from '../constants.tsx';
+import { formatK, DAILY_TASK_LIMIT } from '../constants.tsx';
 import { 
   ArrowUpRight, 
   Megaphone, 
@@ -180,7 +180,7 @@ const Dashboard: React.FC<Props> = ({ user, setView }) => {
           icon={<Zap />}
           label="Nhiệm vụ hôm nay"
           value={user.tasksToday}
-          suffix="/ 10"
+          suffix={`/ ${DAILY_TASK_LIMIT}`}
           borderColor="border-l-blue-600"
           iconColor="text-blue-500"
         />
@@ -245,33 +245,6 @@ const Dashboard: React.FC<Props> = ({ user, setView }) => {
           XEM TẤT CẢ THÔNG BÁO
         </button>
       </div>
-
-      {ads.length > 0 && (
-        <div className="space-y-8">
-          <div className="flex items-center gap-6 px-4">
-             <ShoppingBag className="w-8 h-8 text-amber-500" />
-             <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.3em] italic">ĐỐI TÁC TÀI TRỢ</h3>
-             <div className="flex-1 h-px bg-gradient-to-r from-slate-800 via-slate-700 to-transparent"></div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-            {ads.map(ad => (
-              <a key={ad.id} href={ad.targetUrl} target="_blank" className="glass-card group p-8 rounded-[3.5rem] border border-white/5 hover:border-blue-500/50 transition-all flex flex-col h-full bg-slate-900/30 shadow-2xl overflow-hidden">
-                <div className="aspect-video rounded-[2.5rem] overflow-hidden mb-8 relative shrink-0 border border-white/10 shadow-inner">
-                   <img src={ad.imageUrl} alt={ad.title} className="w-full h-full object-cover group-hover:scale-125 transition-transform duration-1000" />
-                   <div className="absolute top-6 right-6 p-3 bg-black/70 backdrop-blur-xl rounded-2xl text-white opacity-0 group-hover:opacity-100 transition-opacity"><ExternalLink className="w-6 h-6" /></div>
-                </div>
-                <div className="flex-1 flex flex-col justify-between">
-                  <h4 className="text-white font-black text-xl md:text-2xl uppercase italic tracking-tight leading-tight mb-6 group-hover:text-blue-400 transition-colors">{ad.title}</h4>
-                  <div className="pt-8 border-t border-white/10 flex items-center justify-between">
-                    <span className="text-[10px] font-black text-slate-500 uppercase italic tracking-widest">Premium Partner</span>
-                    <span className="text-blue-500 font-black text-[12px] uppercase italic tracking-[0.25em] group-hover:translate-x-3 transition-transform">XEM NGAY →</span>
-                  </div>
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
 
       <style>{`
         @keyframes marquee {

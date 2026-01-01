@@ -3,16 +3,18 @@ import { BLOG_DESTINATION, TASK_RATES } from '../constants.tsx';
 
 /**
  * Hàm mở link nhiệm vụ. 
- * Thay vì fetch (bị lỗi CORS), chúng ta mở cửa sổ mới để trình duyệt xử lý redirect của API nhà cung cấp.
+ * Sử dụng window.open để vượt qua lỗi CORS (Chặn truy cập API chéo sân).
+ * Hệ thống tự động tạo link rút gọn với đích đến là trang Blog lấy mã.
  */
 export const openTaskLink = (taskId: number, userId: string, token: string) => {
   const task = TASK_RATES[taskId];
   if (!task) return;
 
+  // Đích đến là Blog lấy mã, có kèm theo Token bảo mật (Security Token)
   const dest = encodeURIComponent(`${BLOG_DESTINATION}?uid=${userId}&tid=${taskId}&key=${token}`);
   let apiUrl = "";
 
-  // Cấu hình URL gọi nhanh cho từng nhà cung cấp dựa trên API Key
+  // Cấu hình URL rút gọn dựa trên cấu trúc API chuẩn của từng nhà cung cấp
   switch(taskId) {
     case 1: 
       apiUrl = `https://link4m.co/api-shorten/v2?api=${task.apiKey}&url=${dest}`; 
@@ -34,8 +36,10 @@ export const openTaskLink = (taskId: number, userId: string, token: string) => {
       break;
   }
 
-  // Mở tab mới để vượt link
+  // Mở tab mới để trình duyệt xử lý redirect
   if (apiUrl) {
     window.open(apiUrl, "_blank");
+  } else {
+    console.error("Lỗi: Không xác định được cấu hình API cho Node ID:", taskId);
   }
 };

@@ -76,9 +76,11 @@
         100% { transform: translateY(0px) rotate(0deg); }
       }
       .float-animation { animation: float 6s ease-in-out infinite; }
+      
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 
-    <!-- Import Map cho các thư viện external dùng shim-mode -->
     <script type="importmap-shim">
     {
       "imports": {
@@ -109,7 +111,7 @@
       window.process = { env: { API_KEY: "" } };
     </script>
 
-    <!-- Load entry point index.tsx nằm cùng cấp với index.html -->
-    <script type="module-shim" src="./index.tsx"></script>
+    <!-- Sửa lỗi MIME type và GitHub Pages bằng cách dùng text/babel thay cho module -->
+    <script type="text/babel" data-presets="react,typescript" src="./index.tsx"></script>
 </body>
 </html>
