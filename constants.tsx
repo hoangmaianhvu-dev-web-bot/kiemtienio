@@ -39,11 +39,26 @@ export const SOCIAL_LINKS = {
   GITHUB: "https://github.com/your-username/diamond-nova"
 };
 
+/**
+ * Định dạng số theo chuẩn K, M, B
+ * K = 1,000
+ * M = 1,000,000
+ * B = 1,000,000,000
+ */
 export const formatK = (num: number): string => {
-  if (num === 0) return "0k";
-  if (num < 1000) return `${(num / 1000).toFixed(1)}k`;
-  const k = num / 1000;
-  return k % 1 === 0 ? `${k}k` : `${k.toFixed(1)}k`;
+  if (num === 0) return "0";
+  const absNum = Math.abs(num);
+  
+  if (absNum >= 1000000000) {
+    return (num / 1000000000).toFixed(1).replace(/\.0$/, '') + 'B';
+  }
+  if (absNum >= 1000000) {
+    return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  }
+  if (absNum >= 1000) {
+    return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+  }
+  return num.toString();
 };
 
 export const TASK_GATES: TaskGate[] = [

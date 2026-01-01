@@ -115,7 +115,7 @@ const Dashboard: React.FC<Props> = ({ user, setView }) => {
              ) : (
                <>
                  <span className="text-sm font-black text-white uppercase italic tracking-[0.25em]">CHÀO MỪNG ĐẾN VỚI DIAMOND NOVA VISION 1.0 - KIẾM TIỀN & KIM CƯƠNG FF MIỄN PHÍ!</span>
-                 <span className="text-sm font-black text-blue-400 uppercase italic tracking-[0.25em]">RÚT TIỀN CỰC NHANH VỀ ATM CHỈ TỪ 50,000 P (5K VNĐ) - XỬ LÝ TRONG 5-30 PHÚT!</span>
+                 <span className="text-sm font-black text-blue-400 uppercase italic tracking-[0.25em]">RÚT TIỀN CỰC NHANH VỀ ATM CHỈ TỪ 5,000 P (5K VNĐ) - XỬ LÝ TRONG 5-30 PHÚT!</span>
                </>
              )}
           </div>
@@ -280,6 +280,9 @@ const Dashboard: React.FC<Props> = ({ user, setView }) => {
         }
         .animate-marquee {
           animation: marquee 35s linear infinite;
+        }
+        .shadow-glow-sm {
+          box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
         }
       `}</style>
     </div>
