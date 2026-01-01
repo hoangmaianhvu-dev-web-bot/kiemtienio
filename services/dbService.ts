@@ -4,6 +4,7 @@ import { User, Giftcode, WithdrawalRequest, AdminNotification, Announcement, AdB
 import { REFERRAL_REWARD, RATE_VND_TO_POINT } from '../constants.tsx';
 
 // Khởi tạo Supabase Client
+// Fix: Use process.env directly instead of window.process.env
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
 export const supabase = createClient(supabaseUrl, supabaseKey);
@@ -13,6 +14,8 @@ const mapUser = (u: any): User => {
   if (!u) return null as any;
   return {
     ...u,
+    bankInfo: u.bank_info || '',
+    idGame: u.id_game || '',
     totalEarned: u.total_earned ?? 0,
     isBanned: u.is_banned ?? false,
     isAdmin: u.is_admin ?? false,
@@ -40,14 +43,17 @@ export const dbService = {
     const newUser = {
       id: userId,
       email,
-      password_hash: btoa(pass), // Demo: Nên dùng auth thực tế của Supabase
+      password_hash: btoa(pass),
       fullname: fullname.toUpperCase(),
       balance: 0,
       total_earned: 0,
       is_admin: isFirst,
       is_banned: false,
       join_date: new Date().toISOString(),
-      referred_by: refId || null
+      referred_by: refId || null,
+      bank_info: '',
+      id_game: '',
+      task_counts: {}
     };
 
     const { error } = await supabase.from('users').insert([newUser]);
@@ -58,7 +64,7 @@ export const dbService = {
       const { data: refUser } = await supabase.from('users').select('*').eq('id', refId).single();
       if (refUser) {
         await supabase.from('users').update({
-          balance: refUser.balance + REFERRAL_REWARD,
+          balance: (refUser.balance || 0) + REFERRAL_REWARD,
           total_earned: (refUser.total_earned || 0) + REFERRAL_REWARD,
           referral_count: (refUser.referral_count || 0) + 1,
           referral_bonus: (refUser.referral_bonus || 0) + REFERRAL_REWARD
@@ -83,7 +89,7 @@ export const dbService = {
       .select('*')
       .eq('email', email)
       .eq('password_hash', btoa(pass))
-      .single();
+      .maybeSingle();
 
     if (error || !user) return null;
 
@@ -94,8 +100,9 @@ export const dbService = {
   getCurrentUser: async () => {
     const id = localStorage.getItem('nova_session_id');
     if (!id) return null;
-    const { data: user } = await supabase.from('users').select('*').eq('id', id).single();
-    return user ? mapUser(user) : null;
+    const { data: user, error } = await supabase.from('users').select('*').eq('id', id).maybeSingle();
+    if (error || !user) return null;
+    return mapUser(user);
   },
 
   logout: () => {
@@ -103,24 +110,67 @@ export const dbService = {
   },
 
   getTotalUserCount: async () => {
-    const { count } = await supabase.from('users').select('*', { count: 'exact', head: true });
+    const { count, error } = await supabase.from('users').select('*', { count: 'exact', head: true });
+    if (error) return 0;
     return count || 0;
   },
 
   // --- USER DATA ---
   updateUser: async (id: string, updates: Partial<User>) => {
     const dbUpdates: any = { ...updates };
-    if (updates.totalEarned !== undefined) dbUpdates.total_earned = updates.totalEarned;
-    if (updates.isBanned !== undefined) dbUpdates.is_banned = updates.isBanned;
-    if (updates.isAdmin !== undefined) dbUpdates.is_admin = updates.isAdmin;
-    if (updates.lastTaskDate !== undefined) dbUpdates.last_task_date = updates.lastTaskDate;
-    if (updates.taskCounts !== undefined) dbUpdates.task_counts = updates.taskCounts;
     
+    // Ánh xạ ngược camelCase sang snake_case cho Database
+    if (updates.totalEarned !== undefined) {
+      dbUpdates.total_earned = updates.totalEarned;
+      delete dbUpdates.totalEarned;
+    }
+    if (updates.isBanned !== undefined) {
+      dbUpdates.is_banned = updates.isBanned;
+      delete dbUpdates.isBanned;
+    }
+    if (updates.isAdmin !== undefined) {
+      dbUpdates.is_admin = updates.isAdmin;
+      delete dbUpdates.isAdmin;
+    }
+    if (updates.lastTaskDate !== undefined) {
+      dbUpdates.last_task_date = updates.lastTaskDate;
+      delete dbUpdates.lastTaskDate;
+    }
+    if (updates.taskCounts !== undefined) {
+      dbUpdates.task_counts = updates.taskCounts;
+      delete dbUpdates.taskCounts;
+    }
+    if (updates.bankInfo !== undefined) {
+      dbUpdates.bank_info = updates.bankInfo;
+      delete dbUpdates.bankInfo;
+    }
+    if (updates.idGame !== undefined) {
+      dbUpdates.id_game = updates.idGame;
+      delete dbUpdates.idGame;
+    }
+    if (updates.joinDate !== undefined) {
+      dbUpdates.join_date = updates.joinDate;
+      delete dbUpdates.joinDate;
+    }
+    if (updates.referralCount !== undefined) {
+      dbUpdates.referral_count = updates.referralCount;
+      delete dbUpdates.referralCount;
+    }
+    if (updates.referralBonus !== undefined) {
+      dbUpdates.referral_bonus = updates.referralBonus;
+      delete dbUpdates.referralBonus;
+    }
+    if (updates.referredBy !== undefined) {
+      dbUpdates.referred_by = updates.referredBy;
+      delete dbUpdates.referredBy;
+    }
+
     await supabase.from('users').update(dbUpdates).eq('id', id);
   },
 
   getAllUsers: async () => {
-    const { data } = await supabase.from('users').select('*').order('balance', { ascending: false });
+    const { data, error } = await supabase.from('users').select('*').order('balance', { ascending: false });
+    if (error) return [];
     return (data || []).map(mapUser);
   },
 
@@ -162,9 +212,9 @@ export const dbService = {
   updateWithdrawalStatus: async (id: string, status: string, userId?: string, amount?: number) => {
     await supabase.from('withdrawals').update({ status }).eq('id', id);
     if (status === 'rejected' && userId && amount) {
-      const { data: user } = await supabase.from('users').select('balance').eq('id', userId).single();
+      const { data: user } = await supabase.from('users').select('balance').eq('id', userId).maybeSingle();
       if (user) {
-        await supabase.from('users').update({ balance: user.balance + (amount * RATE_VND_TO_POINT) }).eq('id', userId);
+        await supabase.from('users').update({ balance: (user.balance || 0) + (amount * RATE_VND_TO_POINT) }).eq('id', userId);
       }
     }
   },
@@ -204,7 +254,7 @@ export const dbService = {
   },
 
   clearAllNotifications: async () => {
-    await supabase.from('notifications').delete().neq('id', '0');
+    await supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   },
 
   // --- ANNOUNCEMENTS & ADS ---
@@ -265,14 +315,13 @@ export const dbService = {
     await supabase.from('giftcodes').insert([{
       code: gc.code,
       amount: gc.amount,
-      max_uses: gc.maxUses,
+      max_uses: gc.max_uses,
       used_by: [],
       created_at: new Date().toISOString()
     }]);
   },
 
   saveGiftcodes: async (codes: Giftcode[]) => {
-    // This is a bulk update helper
     for (const gc of codes) {
       await supabase.from('giftcodes').update({
         used_by: gc.usedBy
