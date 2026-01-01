@@ -9,7 +9,7 @@ import {
   Sparkles 
 } from 'lucide-react';
 
-// Components
+// Components - Tất cả phải có đuôi file rõ ràng
 import Login from './components/Login.tsx';
 import Dashboard from './components/Dashboard.tsx';
 import Tasks from './components/Tasks.tsx';
@@ -63,6 +63,7 @@ const App: React.FC = () => {
     );
   }
 
+  // Nếu chưa đăng nhập, render Login ngay lập tức (Luồng ưu tiên)
   if (!user) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
