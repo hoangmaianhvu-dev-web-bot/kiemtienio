@@ -40,10 +40,8 @@ export const SOCIAL_LINKS = {
 };
 
 /**
- * Định dạng số theo chuẩn K, M, B
- * K = 1,000
- * M = 1,000,000
- * B = 1,000,000,000
+ * Định dạng số theo chuẩn K (Ngàn), M (Triệu), B (Tỷ)
+ * Hỗ trợ xử lý giá trị không xác định để tránh lỗi hệ thống.
  */
 export const formatK = (num: number | undefined | null): string => {
   if (num === undefined || num === null || num === 0) return "0";

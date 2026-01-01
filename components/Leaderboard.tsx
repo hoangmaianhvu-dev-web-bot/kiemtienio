@@ -20,7 +20,7 @@ const Leaderboard: React.FC = () => {
       .filter(u => !u.isBanned)
       .sort((a, b) => b.balance - a.balance);
     
-    // Nếu hệ thống trống, dùng dữ liệu mẫu chất lượng cao
+    // Nếu hệ thống chưa có dữ liệu, trả về danh sách mẫu để tránh lỗi UI
     if (all.length === 0) {
       return [
         { fullname: 'NOVA MASTER', balance: 5000000 },
@@ -34,9 +34,10 @@ const Leaderboard: React.FC = () => {
     return all.slice(0, 10);
   }, []);
 
-  const top1 = users[0];
-  const top2 = users[1];
-  const top3 = users[2];
+  // Safety checks cho Top 3
+  const top1 = users[0] || { fullname: 'Chưa có', balance: 0 };
+  const top2 = users[1] || { fullname: 'Chưa có', balance: 0 };
+  const top3 = users[2] || { fullname: 'Chưa có', balance: 0 };
 
   return (
     <div className="space-y-12 animate-in fade-in duration-700 pb-20">
@@ -55,10 +56,10 @@ const Leaderboard: React.FC = () => {
                 BẢNG <br />
                 <span className="bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 bg-clip-text text-transparent">VINH QUANG</span>
                </h1>
-               <p className="text-[9px] font-black text-blue-500/40 uppercase tracking-[0.5em] italic mt-4 ml-1">hoangmaianhvu-dev-bot-web</p>
+               <p className="text-[10px] font-black text-blue-500/40 uppercase tracking-[0.5em] italic mt-4 ml-1">hoangmaianhvu-dev-bot-web</p>
             </div>
             <p className="text-slate-400 text-lg font-medium leading-relaxed italic max-w-lg">
-              Tôn vinh những cá nhân xuất sắc nhất trong cộng đồng Diamond Nova. Thứ hạng được cập nhật thời gian thực.
+              Tôn vinh những cá nhân xuất sắc nhất trong cộng đồng Diamond Nova. Thứ hạng được cập nhật thời gian thực dựa trên tổng tích lũy.
             </p>
         </div>
       </div>
@@ -73,10 +74,10 @@ const Leaderboard: React.FC = () => {
             </div>
             <div className="absolute -bottom-2 -right-2 bg-slate-800 text-white w-10 h-10 rounded-xl flex items-center justify-center font-black border-2 border-slate-600 text-lg">2</div>
           </div>
-          <h3 className="mt-12 font-black text-2xl text-white mb-2 uppercase italic tracking-tighter truncate w-full px-4">{top2?.fullname || 'ĐANG CHỜ...'}</h3>
+          <h3 className="mt-12 font-black text-2xl text-white mb-2 uppercase italic tracking-tighter truncate w-full px-4">{top2.fullname}</h3>
           <div className="flex items-center gap-2 mb-4">
              <Star className="w-4 h-4 text-slate-400" />
-             <p className="text-slate-200 font-black text-3xl italic tracking-tighter">{formatK(top2?.balance)}</p>
+             <p className="text-slate-200 font-black text-3xl italic tracking-tighter">{formatK(top2.balance)}</p>
              <span className="text-slate-500 font-black text-xs uppercase">P</span>
           </div>
           <div className="px-4 py-1.5 bg-slate-400/10 rounded-full border border-slate-400/20 text-[10px] font-black text-slate-400 uppercase tracking-widest">SILVER ELITE</div>
@@ -90,10 +91,10 @@ const Leaderboard: React.FC = () => {
             </div>
             <div className="absolute -bottom-2 -right-2 bg-amber-400 text-slate-950 w-12 h-12 rounded-2xl flex items-center justify-center font-black border-2 border-slate-950 text-xl shadow-2xl">1</div>
           </div>
-          <h3 className="mt-14 font-black text-3xl text-white mb-2 uppercase italic tracking-tighter truncate w-full px-4 drop-shadow-md">{top1?.fullname || 'ĐANG CHỜ...'}</h3>
+          <h3 className="mt-14 font-black text-3xl text-white mb-2 uppercase italic tracking-tighter truncate w-full px-4 drop-shadow-md">{top1.fullname}</h3>
           <div className="flex items-center gap-2 mb-6">
              <Sparkles className="w-6 h-6 text-amber-400 animate-bounce" />
-             <p className="text-amber-400 font-black text-5xl italic tracking-tighter drop-shadow-[0_0_15px_rgba(245,158,11,0.4)]">{formatK(top1?.balance)}</p>
+             <p className="text-amber-400 font-black text-5xl italic tracking-tighter drop-shadow-[0_0_15px_rgba(245,158,11,0.4)]">{formatK(top1.balance)}</p>
              <span className="text-amber-600 font-black text-lg uppercase">P</span>
           </div>
           <div className="px-6 py-2 bg-amber-500/20 rounded-2xl border border-amber-500/30 text-[11px] font-black text-amber-400 uppercase tracking-[0.3em] italic shadow-inner">SUPREME NOVA</div>
@@ -107,10 +108,10 @@ const Leaderboard: React.FC = () => {
             </div>
             <div className="absolute -bottom-2 -right-2 bg-orange-900 text-white w-10 h-10 rounded-xl flex items-center justify-center font-black border-2 border-orange-700 text-lg">3</div>
           </div>
-          <h3 className="mt-12 font-black text-2xl text-white mb-2 uppercase italic tracking-tighter truncate w-full px-4">{top3?.fullname || 'ĐANG CHỜ...'}</h3>
+          <h3 className="mt-12 font-black text-2xl text-white mb-2 uppercase italic tracking-tighter truncate w-full px-4">{top3.fullname}</h3>
           <div className="flex items-center gap-2 mb-4">
              <TrendingUp className="w-4 h-4 text-orange-500" />
-             <p className="text-slate-200 font-black text-3xl italic tracking-tighter">{formatK(top3?.balance)}</p>
+             <p className="text-slate-200 font-black text-3xl italic tracking-tighter">{formatK(top3.balance)}</p>
              <span className="text-slate-500 font-black text-xs uppercase">P</span>
           </div>
           <div className="px-4 py-1.5 bg-orange-700/10 rounded-full border border-orange-700/20 text-[10px] font-black text-orange-400 uppercase tracking-widest">BRONZE ELITE</div>
@@ -124,9 +125,9 @@ const Leaderboard: React.FC = () => {
              <div className="p-3 bg-blue-600/10 rounded-2xl border border-blue-500/20">
                <Users className="w-6 h-6 text-blue-400" />
              </div>
-             <h4 className="text-xl font-black text-white uppercase italic tracking-tighter">THỨ HẠNG KẾ TIẾP</h4>
+             <h4 className="text-xl font-black text-white uppercase italic tracking-tighter">DANH SÁCH CAO THỦ</h4>
            </div>
-           <div className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic">Cập nhật 5 phút trước</div>
+           <div className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic">hoangmaianhvu-dev-bot-web • Vision 1.0</div>
         </div>
         
         <div className="overflow-x-auto">
@@ -170,7 +171,7 @@ const Leaderboard: React.FC = () => {
               )) : (
                 <tr>
                    <td colSpan={3} className="px-10 py-20 text-center text-slate-700 font-black uppercase italic tracking-[0.3em] text-xs">
-                      Đang tìm kiếm thêm cao thủ...
+                      Hệ thống đang đồng bộ thêm dữ liệu...
                    </td>
                 </tr>
               )}
@@ -179,7 +180,6 @@ const Leaderboard: React.FC = () => {
         </div>
       </div>
       
-      {/* Footer Branding */}
       <div className="text-center opacity-20">
          <span className="text-[10px] font-black uppercase tracking-[0.8em] text-white">CORE RANKING SYSTEM ACTIVE</span>
       </div>
