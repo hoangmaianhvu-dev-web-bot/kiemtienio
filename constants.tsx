@@ -45,8 +45,8 @@ export const SOCIAL_LINKS = {
  * M = 1,000,000
  * B = 1,000,000,000
  */
-export const formatK = (num: number): string => {
-  if (num === 0) return "0";
+export const formatK = (num: number | undefined | null): string => {
+  if (num === undefined || num === null || num === 0) return "0";
   const absNum = Math.abs(num);
   
   if (absNum >= 1000000000) {
