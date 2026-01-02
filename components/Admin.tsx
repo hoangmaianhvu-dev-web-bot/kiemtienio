@@ -99,29 +99,46 @@ export default function Admin({ user, onUpdateUser }: AdminProps) {
     const isUnbanning = u.isBanned;
     const reason = isUnbanning ? '' : prompt('Lý do khóa tài khoản?') || 'Vi phạm chính sách';
     
-    if (!isUnbanning && reason === 'Vi phạm chính sách' && !confirm('Xác nhận KHÓA người dùng này?')) return;
+    if (!isUnbanning && reason === 'Vi phạm chính sách' && !confirm('Xác nhận KHÓA người dùng này?')) {
+      setActiveUserMenu(null);
+      return;
+    }
 
-    const res = await dbService.updateUser(u.id, { is_banned: !u.isBanned, ban_reason: reason });
+    const res = await dbService.updateUser(u.id, { isBanned: !u.isBanned, banReason: reason });
     if (res.success) {
       alert(`Đã ${isUnbanning ? 'MỞ KHÓA (Unban)' : 'KHÓA (Ban)'} tài khoản thành công.`);
       refreshData();
+    } else {
+      alert(res.message);
     }
     setActiveUserMenu(null);
   };
 
   const handleAdjustPoints = async (userId: string, isAdd: boolean) => {
-    const amount = parseInt(prompt(`Nhập số điểm muốn ${isAdd ? 'CỘNG' : 'TRỪ'}?`) || '0');
-    if (isNaN(amount) || amount === 0) return;
+    const amountStr = prompt(`Nhập số điểm muốn ${isAdd ? 'CỘNG' : 'TRỪ'}?`) || '0';
+    const amount = parseInt(amountStr);
+    
+    if (isNaN(amount) || amount === 0) {
+      setActiveUserMenu(null);
+      return;
+    }
+    
     const res = await dbService.adjustBalance(userId, isAdd ? amount : -amount);
     if (res.success) {
       alert(res.message);
       refreshData();
+    } else {
+      alert(res.message);
     }
     setActiveUserMenu(null);
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('CẢNH BÁO NGUY HIỂM: BẠN CÓ CHẮC MUỐN XÓA VĨNH VIỄN TÀI KHOẢN NÀY?')) return;
+    if (!confirm('CẢNH BÁO NGUY HIỂM: BẠN CÓ CHẮC MUỐN XÓA VĨNH VIỄN TÀI KHOẢN NÀY?')) {
+      setActiveUserMenu(null);
+      return;
+    }
+    
     const res = await dbService.deleteUser(userId);
     if (res.success) {
       alert(res.message);
@@ -286,7 +303,7 @@ export default function Admin({ user, onUpdateUser }: AdminProps) {
                              </button>
                              <div className="h-px bg-white/5 my-2"></div>
                              <button onClick={() => handleDeleteUser(u.id)} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-600 hover:text-white text-left text-slate-500 font-bold transition-all">
-                                <UserX size={14} /> <span>XÓA VĨNH VIÊNN</span>
+                                <UserX size={14} /> <span>XÓA VĨNH VIỄN</span>
                              </button>
                           </div>
                         )}

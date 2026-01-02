@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { User, VipTier } from '../types.ts';
 import { 
-  Shield, Save, KeyRound, Phone, Fingerprint, CheckCircle2, UserX, Lock, ShieldCheck, Crown
+  Shield, Save, KeyRound, Phone, Fingerprint, CheckCircle2, UserX, Lock, ShieldCheck, Crown, Loader2
 } from 'lucide-react';
 import { dbService } from '../services/dbService.ts';
 
@@ -17,12 +17,19 @@ const Profile: React.FC<Props> = ({ user, onUpdateUser }) => {
   const [phone, setPhone] = useState(user.phoneNumber || '');
   const [oldPass, setOldPass] = useState('');
   const [newPass, setNewPass] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isChangingPass, setIsChangingPass] = useState(false);
+  const [passLoading, setPassLoading] = useState(false);
 
   const handleUpdateInfo = async () => {
-    onUpdateUser({ ...user, bankInfo: bank, idGame: gameId, phoneNumber: phone });
-    await dbService.linkPhone(user.id, phone);
+    setIsSaving(true);
+    const updatedUser = { ...user, bankInfo: bank, idGame: gameId, phoneNumber: phone };
+    
+    // Perform update via App.tsx's handler which calls dbService.updateUser
+    await onUpdateUser(updatedUser);
+    
+    setIsSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -30,7 +37,11 @@ const Profile: React.FC<Props> = ({ user, onUpdateUser }) => {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!oldPass || !newPass) return alert("Vui lòng điền đủ thông tin.");
+    
+    setPassLoading(true);
     const res = await dbService.updatePassword(user.id, oldPass, newPass);
+    setPassLoading(false);
+    
     alert(res.message);
     if (res.success) {
       setOldPass('');
@@ -53,13 +64,13 @@ const Profile: React.FC<Props> = ({ user, onUpdateUser }) => {
       <div className="flex flex-col md:flex-row items-center gap-8 glass-card p-10 rounded-[3.5rem] border border-white/5">
         <div className={`w-32 h-32 rounded-[2.5rem] bg-slate-900 flex items-center justify-center border-4 relative ${getVipColor()}`}>
            {user.avatarUrl ? <img src={user.avatarUrl} className="w-full h-full object-cover rounded-[2.2rem]" /> : <Fingerprint className="w-12 h-12 text-slate-700" />}
-           {user.vipTier !== 'none' && <Crown className="absolute -top-4 -right-4 w-10 h-10 text-amber-500 fill-amber-500 animate-bounce" />}
+           {user.isVip && <Crown className="absolute -top-4 -right-4 w-10 h-10 text-amber-500 fill-amber-500 animate-bounce" />}
         </div>
         <div className="text-center md:text-left">
            <h1 className="text-4xl font-black text-white italic uppercase tracking-tighter">{user.fullname}</h1>
            <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-3">
               <span className="bg-slate-900 border border-white/5 text-slate-500 text-[9px] font-black px-4 py-1.5 rounded-full">#{user.id.toUpperCase()}</span>
-              <span className={`text-[9px] font-black px-4 py-1.5 rounded-full border ${user.vipTier !== 'none' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-slate-900 text-slate-700 border-white/5'}`}>
+              <span className={`text-[9px] font-black px-4 py-1.5 rounded-full border ${user.isVip ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-slate-900 text-slate-700 border-white/5'}`}>
                  RANK: {user.vipTier.toUpperCase()}
               </span>
            </div>
@@ -87,8 +98,12 @@ const Profile: React.FC<Props> = ({ user, onUpdateUser }) => {
                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">ID Game (FF/LQ)</label>
                  <input type="text" value={gameId} onChange={e => setGameId(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-bold outline-none focus:border-blue-500" />
               </div>
-              <button onClick={handleUpdateInfo} className="w-full bg-blue-600 py-5 rounded-2xl font-black text-white uppercase italic text-[11px] tracking-widest shadow-lg shadow-blue-600/20 active:scale-95 transition-all">
-                {saved ? 'ĐÃ CẬP NHẬT THÀNH CÔNG' : 'LƯU THÔNG TIN THAY ĐỔI'}
+              <button 
+                onClick={handleUpdateInfo} 
+                disabled={isSaving}
+                className="w-full bg-blue-600 py-5 rounded-2xl font-black text-white uppercase italic text-[11px] tracking-widest shadow-lg shadow-blue-600/20 active:scale-95 transition-all disabled:opacity-50"
+              >
+                {isSaving ? <Loader2 className="animate-spin mx-auto w-5 h-5" /> : (saved ? 'ĐÃ CẬP NHẬT THÀNH CÔNG' : 'LƯU THÔNG TIN THAY ĐỔI')}
               </button>
            </div>
         </div>
@@ -106,15 +121,17 @@ const Profile: React.FC<Props> = ({ user, onUpdateUser }) => {
              <form onSubmit={handleChangePassword} className="space-y-6 animate-in slide-in-from-top-4">
                 <div className="space-y-2">
                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Mật khẩu hiện tại</label>
-                   <input type="password" value={oldPass} onChange={e => setOldPass(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-bold outline-none" />
+                   <input type="password" value={oldPass} onChange={e => setOldPass(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-bold outline-none focus:border-purple-500" />
                 </div>
                 <div className="space-y-2">
                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Mật khẩu mới</label>
-                   <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-bold outline-none" />
+                   <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-bold outline-none focus:border-purple-500" />
                 </div>
                 <div className="flex gap-4">
                    <button type="button" onClick={() => setIsChangingPass(false)} className="flex-1 py-4 bg-slate-900 text-slate-500 font-black rounded-xl text-[10px] uppercase">HỦY</button>
-                   <button type="submit" className="flex-[2] py-4 bg-purple-600 text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg shadow-purple-600/20">XÁC NHẬN ĐỔI</button>
+                   <button type="submit" disabled={passLoading} className="flex-[2] py-4 bg-purple-600 text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg shadow-purple-600/20 active:scale-95 disabled:opacity-50">
+                      {passLoading ? <Loader2 className="animate-spin mx-auto w-5 h-5" /> : 'XÁC NHẬN ĐỔI'}
+                   </button>
                 </div>
              </form>
            )}

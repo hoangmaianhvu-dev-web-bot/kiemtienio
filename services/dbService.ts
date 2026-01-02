@@ -160,24 +160,34 @@ export const dbService = {
     };
   },
 
-  updateUser: async (userId: string, updates: Partial<any>) => {
+  updateUser: async (userId: string, updates: Partial<User>) => {
     const dbUpdates: any = {};
+    
+    // Explicit list of allowed columns to prevent SQL injection or accidental updates
+    const validColumns = [
+      'fullname', 'bank_info', 'id_game', 'phone_number', 'avatar_url', 
+      'balance', 'is_banned', 'ban_reason', 'vip_tier', 'vip_until',
+      'total_earned', 'total_giftcode_earned', 'tasks_today', 'tasks_week',
+      'task_counts', 'last_task_date', 'security_score'
+    ];
+
+    // Map camelCase to snake_case
     if (updates.bankInfo !== undefined) dbUpdates.bank_info = updates.bankInfo;
     if (updates.idGame !== undefined) dbUpdates.id_game = updates.idGame;
     if (updates.phoneNumber !== undefined) dbUpdates.phone_number = updates.phoneNumber;
     if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
-    if (updates.balance !== undefined) dbUpdates.balance = updates.balance;
     if (updates.isBanned !== undefined) dbUpdates.is_banned = updates.isBanned;
+    if (updates.banReason !== undefined) dbUpdates.ban_reason = updates.banReason;
+    if (updates.fullname !== undefined) dbUpdates.fullname = updates.fullname;
+    if (updates.balance !== undefined) dbUpdates.balance = updates.balance;
+    if (updates.vipTier !== undefined) dbUpdates.vip_tier = updates.vipTier;
+    if (updates.vipUntil !== undefined) dbUpdates.vip_until = updates.vipUntil;
 
-    Object.keys(updates).forEach(key => {
-        const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-        if (!dbUpdates[snakeKey]) {
-            dbUpdates[snakeKey] = updates[key];
-        }
-    });
+    // Remove undefined keys
+    Object.keys(dbUpdates).forEach(key => dbUpdates[key] === undefined && delete dbUpdates[key]);
 
     const { error } = await supabase.from('users_data').update(dbUpdates).eq('id', userId);
-    return { success: !error, message: error ? error.message : 'Cập nhật thành công.' };
+    return { success: !error, message: error ? `Lỗi hệ thống: ${error.message}` : 'Cập nhật thành công.' };
   },
 
   linkPhone: async (userId: string, phone: string) => {
@@ -208,15 +218,21 @@ export const dbService = {
   },
 
   adjustBalance: async (userId: string, amount: number) => {
-    const { data: u } = await supabase.from('users_data').select('balance').eq('id', userId).single();
-    if (!u) return { success: false, message: 'User not found' };
-    const { error } = await supabase.from('users_data').update({ balance: u.balance + amount }).eq('id', userId);
-    return { success: !error, message: error ? error.message : 'Cập nhật số dư thành công.' };
+    // We must fetch current balance first to avoid issues with nulls or string conversions
+    const { data: u, error: fetchError } = await supabase.from('users_data').select('balance').eq('id', userId).single();
+    if (fetchError || !u) return { success: false, message: 'Không tìm thấy người dùng.' };
+    
+    const currentBalance = Number(u.balance || 0);
+    const newBalance = currentBalance + amount;
+
+    const { error } = await supabase.from('users_data').update({ balance: newBalance }).eq('id', userId);
+    return { success: !error, message: error ? `Lỗi: ${error.message}` : 'Cập nhật số dư thành công.' };
   },
 
   deleteUser: async (userId: string) => {
     const { error } = await supabase.from('users_data').delete().eq('id', userId);
-    return { success: !error, message: error ? error.message : 'Đã xóa hội viên vĩnh viễn.' };
+    if (error) return { success: false, message: `Lỗi: ${error.message}` };
+    return { success: true, message: 'Đã xóa hội viên vĩnh viễn.' };
   },
 
   getAds: async (includeInactive = false) => {
