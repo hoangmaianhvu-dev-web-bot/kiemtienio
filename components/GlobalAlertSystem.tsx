@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle2, XCircle, AlertTriangle, Info, X } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, Info, X, ShieldCheck } from 'lucide-react';
 
 /* 
   HỆ THỐNG THÔNG BÁO DIAMOND NOVA LUXURY
@@ -106,8 +106,8 @@ const GlobalAlertSystem: React.FC = () => {
 
     return () => {
       // Restore khi unmount (nếu cần)
-      window.alert = (window as any).originalAlert;
-      window.confirm = (window as any).originalConfirm;
+      // window.alert = (window as any).originalAlert;
+      // window.confirm = (window as any).originalConfirm;
     };
   }, []);
 
@@ -115,10 +115,10 @@ const GlobalAlertSystem: React.FC = () => {
 
   // Cấu hình giao diện theo loại
   const configs = {
-    success: { color: '#e2b13c', icon: <CheckCircle2 size={48} />, btnText: 'HOÀN TẤT' },
-    error:   { color: '#ff4d4d', icon: <XCircle size={48} />, btnText: 'ĐÓNG LẠI' },
-    warning: { color: '#f1c40f', icon: <AlertTriangle size={48} />, btnText: 'ĐỒNG Ý' },
-    info:    { color: '#3b82f6', icon: <Info size={48} />, btnText: 'ĐÃ HIỂU' }
+    success: { color: '#e2b13c', icon: <CheckCircle2 size={56} />, btnText: 'HOÀN TẤT' },
+    error:   { color: '#ff4d4d', icon: <XCircle size={56} />, btnText: 'ĐÓNG LẠI' },
+    warning: { color: '#f1c40f', icon: <AlertTriangle size={56} />, btnText: 'ĐỒNG Ý' },
+    info:    { color: '#3b82f6', icon: <Info size={56} />, btnText: 'ĐÃ HIỂU' }
   };
   const cfg = configs[alertState.type];
 
@@ -126,7 +126,7 @@ const GlobalAlertSystem: React.FC = () => {
     <div className="nova-alert-overlay">
       <div className="nova-alert-card animate-zoom">
         {/* Glow Border Effect */}
-        <div className="nova-glow" style={{ borderColor: cfg.color, boxShadow: `0 0 20px ${cfg.color}44` }}></div>
+        <div className="nova-glow" style={{ borderColor: cfg.color, boxShadow: `0 0 25px ${cfg.color}33` }}></div>
         
         <div className="nova-content">
           <div className="nova-header">
@@ -135,11 +135,12 @@ const GlobalAlertSystem: React.FC = () => {
           </div>
 
           <div className="nova-body">
-            <div className="nova-icon-wrapper" style={{ color: cfg.color, filter: `drop-shadow(0 0 10px ${cfg.color}66)` }}>
+            <div className="nova-icon-wrapper" style={{ color: cfg.color, filter: `drop-shadow(0 0 15px ${cfg.color}66)` }}>
               {cfg.icon}
             </div>
             
             <h2 className="nova-title" style={{ color: cfg.color }}>{alertState.title}</h2>
+            <div className="nova-divider" style={{ background: `linear-gradient(90deg, transparent, ${cfg.color}, transparent)` }}></div>
             <p className="nova-message">{alertState.message}</p>
           </div>
 
@@ -157,14 +158,14 @@ const GlobalAlertSystem: React.FC = () => {
                   className="nova-btn nova-btn-confirm"
                   style={{ background: `linear-gradient(135deg, ${cfg.color}, #d35400)` }}
                 >
-                  XÁC NHẬN
+                  ĐỒNG Ý
                 </button>
               </>
             ) : (
               <button 
                 onClick={() => handleClose(true)} 
                 className="nova-btn nova-btn-full"
-                style={{ background: cfg.color, boxShadow: `0 5px 15px ${cfg.color}44` }}
+                style={{ background: cfg.color, boxShadow: `0 5px 20px ${cfg.color}44` }}
               >
                 {cfg.btnText}
               </button>
@@ -175,56 +176,61 @@ const GlobalAlertSystem: React.FC = () => {
 
       <style>{`
         .nova-alert-overlay {
-          position: fixed; inset: 0; z-index: 100000;
-          background: rgba(0, 0, 0, 0.85);
-          backdrop-filter: blur(8px);
+          position: fixed; inset: 0; z-index: 99999;
+          background: rgba(0, 0, 0, 0.75);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
           display: flex; align-items: center; justify-content: center;
           padding: 20px;
         }
         .nova-alert-card {
-          position: relative; width: 100%; max-width: 400px;
-          background: #0d1117; border-radius: 24px;
+          position: relative; width: 100%; max-width: 420px;
+          background: rgba(13, 17, 23, 0.95); 
+          border-radius: 28px;
           overflow: hidden;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
-        .animate-zoom { animation: novaZoom 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        @keyframes novaZoom { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .animate-zoom { animation: novaZoom 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes novaZoom { from { transform: scale(0.8) translateY(20px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
         
         .nova-glow {
-          position: absolute; inset: 0; border: 2px solid; border-radius: 24px;
-          pointer-events: none; opacity: 0.8;
+          position: absolute; inset: 0; border: 1px solid; border-radius: 28px;
+          pointer-events: none; opacity: 0.6;
         }
-        .nova-content { position: relative; z-index: 10; padding: 24px; }
+        .nova-content { position: relative; z-index: 10; padding: 32px; }
         
-        .nova-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .nova-brand { font-size: 10px; font-weight: 900; letter-spacing: 2px; color: #64748b; text-transform: uppercase; }
-        .nova-close { color: #64748b; transition: 0.2s; }
-        .nova-close:hover { color: white; }
+        .nova-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .nova-brand { font-size: 9px; font-weight: 900; letter-spacing: 2px; color: #64748b; text-transform: uppercase; }
+        .nova-close { color: #64748b; transition: 0.2s; padding: 4px; border-radius: 50%; }
+        .nova-close:hover { color: white; background: rgba(255,255,255,0.1); }
 
-        .nova-body { text-align: center; margin-bottom: 24px; }
-        .nova-icon-wrapper { margin-bottom: 16px; display: inline-flex; animation: novaFloat 3s ease-in-out infinite; }
-        @keyframes novaFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        .nova-body { text-align: center; margin-bottom: 32px; }
+        .nova-icon-wrapper { margin-bottom: 20px; display: inline-flex; animation: novaFloat 3s ease-in-out infinite; }
+        @keyframes novaFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
         
-        .nova-title { font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 8px; letter-spacing: -0.5px; font-style: italic; }
-        .nova-message { font-size: 14px; color: #94a3b8; line-height: 1.5; font-weight: 500; }
+        .nova-title { font-size: 26px; font-weight: 900; text-transform: uppercase; margin-bottom: 12px; letter-spacing: -0.5px; font-style: italic; line-height: 1; }
+        .nova-divider { height: 1px; width: 60%; margin: 0 auto 16px; opacity: 0.5; }
+        .nova-message { font-size: 15px; color: #cbd5e1; line-height: 1.6; font-weight: 500; }
 
         .nova-footer { display: flex; gap: 12px; }
         .nova-btn {
-          padding: 14px; border-radius: 14px; font-weight: 800; font-size: 12px;
-          text-transform: uppercase; letter-spacing: 1px; color: white;
+          padding: 16px; border-radius: 16px; font-weight: 800; font-size: 12px;
+          text-transform: uppercase; letter-spacing: 1.5px; color: white;
           border: none; cursor: pointer; transition: all 0.2s;
         }
-        .nova-btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
-        .nova-btn:active { transform: scale(0.95); }
+        .nova-btn:hover { transform: translateY(-3px); filter: brightness(1.2); }
+        .nova-btn:active { transform: scale(0.96); }
         
-        .nova-btn-cancel { background: #1e293b; color: #94a3b8; flex: 1; }
-        .nova-btn-cancel:hover { background: #334155; color: white; }
-        .nova-btn-confirm { flex: 1; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-        .nova-btn-full { width: 100%; color: #000; }
+        .nova-btn-cancel { background: #1e293b; color: #94a3b8; flex: 1; border: 1px solid rgba(255,255,255,0.05); }
+        .nova-btn-cancel:hover { background: #334155; color: white; border-color: rgba(255,255,255,0.1); }
+        .nova-btn-confirm { flex: 1; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+        .nova-btn-full { width: 100%; color: #000; font-weight: 900; }
         
         /* Light Mode Support */
-        :global(html.light) .nova-alert-card { background: #ffffff; }
+        :global(html.light) .nova-alert-card { background: rgba(255, 255, 255, 0.95); }
         :global(html.light) .nova-message { color: #475569; }
-        :global(html.light) .nova-btn-cancel { background: #f1f5f9; color: #64748b; }
+        :global(html.light) .nova-btn-cancel { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+        :global(html.light) .nova-close:hover { background: rgba(0,0,0,0.05); color: #000; }
       `}</style>
     </div>
   );

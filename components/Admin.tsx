@@ -134,19 +134,42 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
     await refreshData();
   };
   
-  const handleVipAction = async (req: any, status: 'completed' | 'refunded') => {
-    // IMPORTANT: Custom confirm is async, must await
-    if (!(await confirm(`Xác nhận ${status === 'completed' ? 'DUYỆT' : 'HỦY'} yêu cầu này?`))) return;
+  // Hàm xử lý thanh toán (Được custom theo yêu cầu mới)
+  const updatePayment = async (billId: string, status: 'approved' | 'refunded', req?: any) => {
+    // Nếu req undefined (gọi từ button trong mảng), tìm trong vipRequests
+    let request = req;
+    if (!request && vipRequests) {
+        request = vipRequests.find(v => `#NV${v.id.slice(0,4)}` === billId || v.id === billId);
+    }
+
+    // Logic gọi Nova Notify
+    const statusText = status === 'approved' ? 'DUYỆT THÀNH CÔNG' : 'HOÀN TIỀN THÀNH CÔNG';
+    const type = status === 'approved' ? 'success' : 'info';
     
-    setIsActionLoading(true);
-    const res = await dbService.updateVipRequestStatus(req.id, status, req.user_id, req.vip_tier, req.amount_vnd);
-    setIsActionLoading(false);
-    
-    if (res.success) {
-      showToast('ADMIN', `Đã cập nhật đơn ${status === 'completed' ? 'DUYỆT THÀNH CÔNG' : 'ĐÃ HOÀN/HỦY'}`, 'success');
-      await refreshData();
+    if (request) {
+        if (!(await confirm(`Xác nhận ${status === 'approved' ? 'DUYỆT' : 'HOÀN'} đơn ${billId}?`))) return;
+        setIsActionLoading(true);
+        // Map 'approved' -> 'completed' for DB
+        const dbStatus = status === 'approved' ? 'completed' : 'refunded';
+        const res = await dbService.updateVipRequestStatus(request.id, dbStatus, request.user_id, request.vip_tier, request.amount_vnd);
+        setIsActionLoading(false);
+        
+        if (res.success) {
+            // Gọi hệ thống thông báo Nova
+            if((window as any).novaNotify) {
+                (window as any).novaNotify(type, 'THANH TOÁN', `Đơn hàng ${billId} đã được ${statusText}!`);
+            }
+            await refreshData();
+        } else {
+            if((window as any).novaNotify) {
+                (window as any).novaNotify('error', 'LỖI', res.message || 'Có lỗi xảy ra');
+            }
+        }
     } else {
-      showToast('LỖI', res.message || 'Có lỗi xảy ra', 'error');
+        // Fallback demo nếu không tìm thấy request thực
+        if((window as any).novaNotify) {
+            (window as any).novaNotify(type, 'THANH TOÁN', `Đơn hàng ${billId} đã được ${statusText}! (Demo)`);
+        }
     }
   };
 
@@ -282,56 +305,101 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
           </div>
         )}
         
+        {/* Nova Payment Card - Code mới tích hợp */}
         {tab === 'payments' && (
-          <div className="space-y-8">
-            <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter" style={{ color: '#e2b13c' }}>QUẢN LÝ THANH TOÁN (NẠP VIP)</h3>
+          <div className="space-y-8 animate-in slide-in-from-right-10">
+            <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter" style={{ color: '#e2b13c' }}>Quản Lý Thanh Toán</h3>
             
-            {/* Nova Card Style Container */}
-            <div className="bg-[#141821]/95 border border-[#e2b13c]/20 rounded-2xl p-6 shadow-xl">
-               <div className="overflow-x-auto">
-                 <table className="w-full text-left border-collapse">
-                   <thead>
-                      <tr className="text-sm font-black uppercase tracking-widest border-b-2 border-[#e2b13c]" style={{ color: '#e2b13c' }}>
-                        <th className="px-4 py-4">Mã Đơn</th>
-                        <th className="px-4 py-4">Hội Viên</th>
-                        <th className="px-4 py-4">Số Tiền</th>
-                        <th className="px-4 py-4 text-center">Tình Trạng</th>
-                        <th className="px-4 py-4 text-right">Hành Động</th>
-                      </tr>
-                   </thead>
-                   <tbody className="text-sm text-white divide-y divide-white/5">
-                     {vipRequests.map(req => (
-                       <tr key={req.id} className="hover:bg-white/[0.05] transition-all">
-                         <td className="px-4 py-5 font-bold">#VIP-{req.id.slice(0, 6).toUpperCase()}</td>
-                         <td className="px-4 py-5">
-                            <div className="font-bold uppercase">{req.user_name}</div>
-                            <div className="text-[10px] text-slate-500 mt-1 italic">{req.email}</div>
-                         </td>
-                         <td className="px-4 py-5 font-black text-[#2ecc71]">+ {req.amount_vnd?.toLocaleString()}đ</td>
-                         <td className="px-4 py-5 text-center">
-                            <span className={`px-3 py-1 rounded-md text-[10px] font-black uppercase italic ${req.status === 'pending' ? 'bg-[#f1c40f]/20 text-[#f1c40f]' : req.status === 'completed' ? 'bg-[#2ecc71]/20 text-[#2ecc71]' : 'bg-[#ff4d4d]/20 text-[#ff4d4d]'}`}>
-                               {req.status === 'pending' ? 'CHỜ XỬ LÝ' : req.status === 'completed' ? 'THÀNH CÔNG' : 'ĐÃ HOÀN/HỦY'}
-                            </span>
-                         </td>
-                         <td className="px-4 py-5 text-right">
-                            {req.status === 'pending' ? (
-                              <div className="flex justify-end gap-2">
-                                 <button onClick={() => handleVipAction(req, 'completed')} className="px-3 py-1.5 rounded-lg bg-[#2ecc71] text-white font-bold text-xs hover:scale-105 hover:brightness-110 transition-all shadow-lg">Duyệt</button>
-                                 <button onClick={() => handleVipAction(req, 'refunded')} className="px-3 py-1.5 rounded-lg bg-[#ff4d4d] text-white font-bold text-xs hover:scale-105 hover:brightness-110 transition-all shadow-lg">Hoàn</button>
-                              </div>
-                            ) : (
-                              <span className="text-[10px] text-slate-500 font-bold italic">Đã xử lý</span>
+            <div className="nova-card">
+                <div className="nova-card-header">
+                    <h3 className="text-lg font-black uppercase tracking-widest" style={{ color: '#e2b13c' }}>Danh Sách Yêu Cầu Nạp VIP</h3>
+                </div>
+                
+                <div className="nova-table-responsive">
+                    <table className="nova-table w-full">
+                        <thead>
+                            <tr>
+                                <th>Mã Đơn</th>
+                                <th>Hội Viên</th>
+                                <th>Số Tiền</th>
+                                <th>Tình Trạng</th>
+                                <th className="text-right">Hành Động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payment-list">
+                            {vipRequests.map((req) => (
+                              <tr key={req.id}>
+                                  <td className="font-bold">#NV{req.id.slice(0,4)}</td>
+                                  <td>
+                                    <div className="font-bold text-white">{req.user_name}</div>
+                                    <div className="text-[10px] opacity-60">{req.email}</div>
+                                  </td>
+                                  <td style={{ color: '#2ecc71', fontWeight: 900 }}>+ {req.amount_vnd?.toLocaleString()}đ</td>
+                                  <td>
+                                    <span className={`badge ${req.status === 'pending' ? 'badge-pending' : req.status === 'completed' ? 'badge-success' : 'badge-danger'}`}>
+                                      {req.status === 'pending' ? 'Chờ xử lý' : req.status === 'completed' ? 'Thành công' : 'Đã hủy'}
+                                    </span>
+                                  </td>
+                                  <td className="text-right">
+                                    {req.status === 'pending' && (
+                                      <>
+                                        <button className="btn-action btn-approve" onClick={() => updatePayment(req.id, 'approved', req)}>Duyệt</button>
+                                        <button className="btn-action btn-refund" onClick={() => updatePayment(req.id, 'refunded', req)}>Hoàn</button>
+                                      </>
+                                    )}
+                                  </td>
+                              </tr>
+                            ))}
+                            {vipRequests.length === 0 && (
+                              <tr><td colSpan={5} className="text-center py-8 opacity-50 italic">Không có yêu cầu thanh toán nào.</td></tr>
                             )}
-                         </td>
-                       </tr>
-                     ))}
-                     {vipRequests.length === 0 && (
-                       <tr><td colSpan={5} className="py-8 text-center text-slate-500 italic">Không có yêu cầu nào.</td></tr>
-                     )}
-                   </tbody>
-                 </table>
-               </div>
+                        </tbody>
+                    </table>
+                </div>
             </div>
+
+            <style>{`
+            :root {
+                --gold: #e2b13c; --blue: #3b82f6; --dark: #0d1117;
+            }
+
+            .nova-card {
+                background: rgba(20, 24, 33, 0.95);
+                border: 1px solid rgba(226, 177, 60, 0.2);
+                border-radius: 15px; padding: 20px; margin-top: 20px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            }
+
+            .nova-table {
+                width: 100%; border-collapse: collapse; margin-top: 15px;
+                color: #fff; font-size: 14px;
+            }
+
+            .nova-table th {
+                text-align: left; padding: 12px; border-bottom: 2px solid var(--gold);
+                color: var(--gold); text-transform: uppercase; letter-spacing: 1px; font-weight: 900; font-style: italic;
+            }
+
+            .nova-table td { padding: 15px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+            /* Badge Tình trạng */
+            .badge { padding: 4px 8px; border-radius: 5px; font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+            .badge-pending { background: rgba(241, 196, 15, 0.2); color: #f1c40f; border: 1px solid rgba(241, 196, 15, 0.3); }
+            .badge-success { background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3); }
+            .badge-danger { background: rgba(255, 77, 77, 0.2); color: #ff4d4d; border: 1px solid rgba(255, 77, 77, 0.3); }
+
+            /* Nút bấm hành động */
+            .btn-action {
+                padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;
+                font-weight: 800; margin-left: 8px; transition: 0.3s;
+                text-transform: uppercase; font-size: 10px; letter-spacing: 1px;
+            }
+
+            .btn-approve { background: #2ecc71; color: #fff; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3); }
+            .btn-refund { background: #ff4d4d; color: #fff; box-shadow: 0 4px 15px rgba(255, 77, 77, 0.3); }
+
+            .btn-action:hover { transform: scale(1.1); filter: brightness(1.2); }
+            `}</style>
           </div>
         )}
 
