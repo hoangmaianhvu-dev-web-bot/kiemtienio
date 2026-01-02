@@ -21,7 +21,9 @@ import {
   ShieldCheck,
   PhoneCall,
   SendHorizontal,
-  MessageCircle
+  MessageCircle,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface Props {
@@ -38,6 +40,8 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
   const [resetCode, setResetCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [totalUsersCount, setTotalUsersCount] = useState(0);
@@ -251,8 +255,21 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                        <input type="text" value={resetCode} onChange={e => setResetCode(e.target.value)} placeholder="MÃ 6 SỐ" maxLength={6} className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-black outline-none text-center tracking-[0.5em]" />
                      </div>
                      <div className="relative group">
-                       <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
-                       <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="MẬT KHẨU MỚI" className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-black outline-none" />
+                       <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-blue-500 transition-colors" />
+                       <input 
+                         type={showNewPassword ? "text" : "password"} 
+                         value={newPassword} 
+                         onChange={e => setNewPassword(e.target.value)} 
+                         placeholder="MẬT KHẨU MỚI" 
+                         className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-14 pr-14 py-4 text-white font-black outline-none focus:border-blue-600 transition-all" 
+                       />
+                       <button 
+                         type="button" 
+                         onClick={() => setShowNewPassword(!showNewPassword)}
+                         className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition-colors"
+                       >
+                         {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                       </button>
                      </div>
                      <button disabled={isLoading} className="w-full bg-emerald-600 py-5 rounded-2xl font-black text-white uppercase italic text-[11px]">{isLoading ? 'ĐANG LƯU...' : 'ĐỔI MẬT KHẨU'}</button>
                    </>
@@ -272,8 +289,21 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                   <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="EMAIL" className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-bold outline-none text-[11px]" />
                 </div>
                 <div className="relative group">
-                  <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="MẬT KHẨU" className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-bold outline-none text-[11px]" />
+                  <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-blue-500 transition-colors" />
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    value={password} 
+                    onChange={e => setPassword(e.target.value)} 
+                    placeholder="MẬT KHẨU" 
+                    className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-14 py-4 text-white font-bold outline-none text-[11px]" 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
 
                 {authMode === 'signup' && (
@@ -307,7 +337,7 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
 
             <div className="text-center pt-6">
               <button 
-                onClick={() => { setAuthMode(authMode === 'login' ? 'signup' : 'login'); setError(''); setSuccessMsg(''); }} 
+                onClick={() => { setAuthMode(authMode === 'login' ? 'signup' : 'login'); setError(''); setSuccessMsg(''); setShowPassword(false); }} 
                 className="text-slate-600 text-[10px] font-black hover:text-blue-400 uppercase tracking-widest italic"
               >
                 {authMode === 'login' ? 'CHƯA CÓ TÀI KHOẢN? ĐĂNG KÝ NGAY' : 'ĐÃ CÓ TÀI KHOẢN? ĐĂNG NHẬP'}

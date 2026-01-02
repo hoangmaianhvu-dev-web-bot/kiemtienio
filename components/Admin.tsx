@@ -7,7 +7,8 @@ import {
   Users, CreditCard, Search, Ban, Unlock, Plus, Trash2, Megaphone, ShieldCheck, 
   ShoppingBag, Ticket, History, Activity, Database, Copy, CheckCircle2, X, 
   PlusCircle, Gamepad2, Building2, AlertTriangle, Loader2, Eye, EyeOff,
-  LayoutTemplate, ImageIcon, MessageSquarePlus, Tag, UserPlus, BarChart3, TrendingUp
+  LayoutTemplate, ImageIcon, MessageSquarePlus, Tag, UserPlus, BarChart3, TrendingUp,
+  Hash
 } from 'lucide-react';
 
 interface Props {
@@ -15,7 +16,8 @@ interface Props {
   onUpdateUser: (user: User) => void;
 }
 
-const Admin: React.FC<Props> = ({ user }) => {
+// Fix: Refactored to direct default function export and included onUpdateUser in destructuring
+export default function Admin({ user, onUpdateUser }: Props) {
   const [tab, setTab] = useState<'users' | 'withdrawals' | 'ads' | 'announcements' | 'giftcodes' | 'logs' | 'setup'>('users');
   const [searchTerm, setSearchTerm] = useState('');
   const [withdrawSearchTerm, setWithdrawSearchTerm] = useState('');
@@ -83,6 +85,11 @@ const Admin: React.FC<Props> = ({ user }) => {
   const handleWithdrawAction = async (id: string, status: 'completed' | 'rejected') => {
     await dbService.updateWithdrawalStatus(id, status);
     refreshData();
+  };
+
+  const handleCopyId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    // Silent notification or toast could be added here if needed, but alert is consistent with current app style
   };
 
   const handleAddAd = async () => {
@@ -335,7 +342,7 @@ ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;`;
                         </td>
                         <td className="px-6 py-6 text-center font-black text-emerald-500 italic text-lg">{formatK(u.balance)} P</td>
                         <td className="px-6 py-6 text-right">
-                           <button onClick={() => handleToggleBan(u)} className={`p-4 rounded-xl transition-all ${u.isBanned ? 'bg-emerald-600/10 text-emerald-500' : 'bg-red-600/10 text-red-500'}`}>
+                           <button onClick={() => handleToggleBan(u)} className={`p-4 rounded-xl transition-all ${u.isBanned ? 'bg-emerald-600/10 text-emerald-400' : 'bg-red-600/10 text-red-500'}`}>
                              {u.isBanned ? <Unlock size={20} /> : <Ban size={20} />}
                            </button>
                         </td>
@@ -356,7 +363,7 @@ ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;`;
                       type="text" 
                       value={withdrawSearchTerm} 
                       onChange={e => setWithdrawSearchTerm(e.target.value)} 
-                      placeholder="Tìm theo Gmail hoặc Tên người rút..." 
+                      placeholder="Tìm theo Gmail, Tên hoặc Mã giao dịch..." 
                       className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-16 pr-6 py-4 text-white font-bold outline-none focus:border-blue-500 shadow-inner text-xs" 
                    />
                 </div>
@@ -364,24 +371,37 @@ ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;`;
              {filteredWithdrawals.length === 0 ? <p className="text-center py-20 text-slate-600 font-black italic">Không tìm thấy yêu cầu rút tiền nào khớp.</p> : 
                filteredWithdrawals.map(w => (
                  <div key={w.id} className="glass-card p-8 rounded-[3rem] border border-white/5 flex flex-col md:flex-row items-center justify-between gap-8">
-                    <div className="flex gap-6 items-center">
+                    <div className="flex gap-6 items-center flex-1">
                        <div className={`p-5 rounded-2xl ${w.type==='bank'?'bg-emerald-600/10 text-emerald-400':'bg-purple-600/10 text-purple-400'}`}>
                           {w.type==='bank'?<Building2 size={32}/>:<Gamepad2 size={32}/>}
                        </div>
-                       <div>
-                          <div className="text-[10px] font-black text-blue-400 uppercase italic mb-1">Gmail/User: {w.userName}</div>
+                       <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <div className="text-[10px] font-black text-blue-400 uppercase italic">Gmail/User: {w.userName}</div>
+                            <div 
+                              onClick={() => { handleCopyId(w.id); alert('Đã copy Mã rút: ' + w.id); }}
+                              className="px-2 py-0.5 bg-slate-800 border border-white/5 rounded text-[8px] font-black text-slate-500 hover:text-blue-400 hover:bg-slate-700 transition-all cursor-pointer flex items-center gap-1 group/id"
+                            >
+                               <Hash size={10} /> TXID: {w.id.substring(0, 13)}... <Copy size={8} className="opacity-40 group-hover/id:opacity-100" />
+                            </div>
+                          </div>
                           <h4 className="font-black text-2xl text-white italic tracking-tighter">{w.amount.toLocaleString()}đ ({w.type.toUpperCase()})</h4>
-                          <div className="text-[11px] text-slate-400 font-bold italic mt-1 bg-white/5 px-3 py-1 rounded-full inline-block">Thông tin: {w.details}</div>
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                             <div className="text-[10px] text-slate-400 font-bold italic bg-white/5 px-3 py-1 rounded-full flex items-center gap-2">
+                                <span className="text-[8px] uppercase tracking-widest text-slate-500">Thông tin:</span> {w.details}
+                                <button onClick={() => { navigator.clipboard.writeText(w.details); alert('Đã copy thông tin thanh toán: ' + w.details); }} className="text-slate-600 hover:text-white"><Copy size={10}/></button>
+                             </div>
+                          </div>
                        </div>
                     </div>
                     {w.status === 'pending' ? (
                       <div className="flex gap-4">
-                         <button onClick={() => handleWithdrawAction(w.id, 'completed')} className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase italic tracking-widest shadow-xl shadow-emerald-600/20">DUYỆT CHI</button>
-                         <button onClick={() => handleWithdrawAction(w.id, 'rejected')} className="px-8 py-4 bg-red-600/10 text-red-500 border border-red-500/20 rounded-2xl font-black text-[10px] uppercase italic tracking-widest">HỦY BỎ</button>
+                         <button onClick={() => handleWithdrawAction(w.id, 'completed')} className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase italic tracking-widest shadow-xl shadow-emerald-600/20 hover:scale-105 transition-transform">DUYỆT CHI</button>
+                         <button onClick={() => handleWithdrawAction(w.id, 'rejected')} className="px-8 py-4 bg-red-600/10 text-red-500 border border-red-500/20 rounded-2xl font-black text-[10px] uppercase italic tracking-widest hover:bg-red-600 hover:text-white transition-all">HỦY BỎ</button>
                       </div>
                     ) : (
-                      <span className={`px-6 py-3 rounded-full text-[10px] font-black uppercase italic ${w.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-                        {w.status === 'completed' ? 'ĐÃ HOÀN TẤT' : 'ĐÃ TỪ CHỐI'}
+                      <span className={`px-6 py-3 rounded-full text-[10px] font-black uppercase italic border ${w.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
+                        {w.status === 'completed' ? 'ĐÀ THỰC HIỆN' : 'ĐÃ TỪ CHỐI'}
                       </span>
                     )}
                  </div>
@@ -608,6 +628,4 @@ END $$;`}
       )}
     </div>
   );
-};
-
-export default Admin;
+}
