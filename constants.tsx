@@ -29,7 +29,8 @@ export const SOCIAL_LINKS = {
   telegram: "https://t.me/VanhTRUM",
   telegramGroup: "https://t.me/diamondnova_group",
   youtube: "https://youtube.com/@diamondnova",
-  zalo: "https://zalo.me/0337117930"
+  zalo: "https://zalo.me/0337117930",
+  telegramBot: "https://t.me/DiamondNovaAuthBot" // Link Bot xác thực OTP
 };
 
 export const WITHDRAW_MILESTONES = [5000, 10000, 20000, 50000, 100000, 200000, 500000];
