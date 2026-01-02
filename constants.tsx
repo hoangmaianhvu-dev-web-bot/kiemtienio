@@ -12,40 +12,36 @@ import {
   Users,
   BookOpen,
   User,
-  Cloud
+  Cloud,
+  Crown
 } from 'lucide-react';
 import { AppView, TaskGate } from './types.ts';
 
-/**
- * Cấu hình bảo mật và tài chính
- * Sử dụng process.env để lấy biến môi trường theo tiêu chuẩn bảo mật Nova
- */
 // @ts-ignore
 export const ADMIN_ID = process.env.ADMIN_ID || process.env.VITE_ADMIN_ID || "7790668848";
-export const EXCHANGE_RATE = 22000; // 1$ = 22k
-export const POINT_EXCHANGE = 10;   // 1 VNĐ = 10 điểm
+export const EXCHANGE_RATE = 22000;
+export const POINT_EXCHANGE = 10;
 export const RATE_VND_TO_POINT = 10;
 export const POINT_PER_DIAMOND = 2000; 
 export const REFERRAL_REWARD = 5000;
 export const DAILY_TASK_LIMIT = 20;
+export const VIP_TASK_LIMIT = 35;
+export const VIP_PRICE = 50000; // 50k P
 
-// Khóa bảo mật để gọi RPC (Phải khớp với mã trong SQL của bạn)
 export const SECURE_AUTH_KEY = "MA_BAO_MAT_CUA_ADMIN";
 
-// Milestones tính bằng VNĐ (1 VNĐ = 10 Điểm)
 export const WITHDRAW_MILESTONES = [5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000];
 
-// Bảng giá quy đổi Kim Cương theo yêu cầu (VNĐ -> Kim Cương)
 export const DIAMOND_EXCHANGE: Record<number, number> = {
-  5000: 25,       // 50k P
-  10000: 51,      // 100k P
-  20000: 113,     // 200k P
-  50000: 283,     // 500k P
-  100000: 566,    // 1M P
-  200000: 1132,   // 2M P
-  500000: 2830,   // 5M P
-  1000000: 5750,  // 10M P
-  2000000: 11500  // 20M P
+  5000: 25,
+  10000: 51,
+  20000: 113,
+  50000: 283,
+  100000: 566,
+  200000: 1132,
+  500000: 2830,
+  1000000: 5750,
+  2000000: 11500
 };
 
 export const BLOG_DESTINATION = "https://avudev-verifi.blogspot.com/";
@@ -58,9 +54,6 @@ export const SOCIAL_LINKS = {
   FANPAGE: "beacons.ai/vanhtrumvn"
 };
 
-/**
- * Danh sách 6 cổng nhiệm vụ chính thức
- */
 export const TASK_RATES: Record<number, { name: string, reward: number, limit: number, apiKey: string }> = {
   1: { name: "LINK4M", reward: 1320, limit: 2, apiKey: "68208afab6b8fc60542289b6" },
   2: { name: "YEULINK", reward: 1320, limit: 4, apiKey: "891b97fa-faa4-4446-bdd3-17add1ea42bc" },
@@ -89,6 +82,7 @@ export const formatK = (num: number | undefined | null): string => {
 
 export const NAV_ITEMS = [
   { id: AppView.DASHBOARD, label: 'Trang chủ', icon: <LayoutDashboard /> },
+  { id: AppView.VIP, label: 'Nâng cấp VIP', icon: <Crown className="text-amber-400" /> },
   { id: AppView.TASKS, label: 'Khai thác điểm', icon: <Coins /> },
   { id: AppView.WITHDRAW, label: 'Rút Thưởng', icon: <CreditCard /> },
   { id: AppView.HISTORY, label: 'Lịch sử rút', icon: <History /> },

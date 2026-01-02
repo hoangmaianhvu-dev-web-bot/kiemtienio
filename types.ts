@@ -11,7 +11,8 @@ export enum AppView {
   ADMIN = 'admin',
   GUIDE = 'guide',
   NOTIFICATIONS = 'notifications',
-  SUPPORT = 'support'
+  SUPPORT = 'support',
+  VIP = 'vip'
 }
 
 export interface ActivityLog {
@@ -41,6 +42,7 @@ export interface User {
   lastLogin?: string;
   isBanned: boolean;
   isAdmin: boolean;
+  isVip?: boolean;
   banReason?: string;
   securityScore?: number;
   referralCount?: number;

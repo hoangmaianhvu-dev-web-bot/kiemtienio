@@ -5,7 +5,7 @@ import { dbService, supabase } from './services/dbService.ts';
 import { NAV_ITEMS, formatK, SOCIAL_LINKS } from './constants.tsx';
 import { 
   Menu, LogOut, Sparkles, Bot, Wifi, WifiOff, Bell, Activity, X, Star, Sun, Moon, 
-  Youtube, MessageCircle, ExternalLink, PhoneCall, SendHorizontal 
+  Youtube, MessageCircle, ExternalLink, PhoneCall, SendHorizontal, Crown 
 } from 'lucide-react';
 
 // Components
@@ -22,6 +22,7 @@ import Guide from './components/Guide.tsx';
 import UserNotifications from './components/UserNotifications.tsx';
 import Support from './components/Support.tsx';
 import GlobalSearch from './components/GlobalSearch.tsx';
+import Vip from './components/Vip.tsx';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -48,13 +49,11 @@ const App: React.FC = () => {
 
   useEffect(() => {
     loadSession();
-
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // NOVA REAL-TIME: Đồng bộ hóa điểm tin cậy, số dư và trạng thái toàn hệ thống
     const userChannel = supabase.channel('user-changes')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users_data' }, (payload) => {
         if (user && payload.new.id === user.id) loadSession();
@@ -134,6 +133,7 @@ const App: React.FC = () => {
       case AppView.GUIDE: return <Guide />;
       case AppView.NOTIFICATIONS: return <UserNotifications user={user} />;
       case AppView.SUPPORT: return <Support />;
+      case AppView.VIP: return <Vip user={user} onUpdateUser={updateUser} />;
       default: return <Dashboard user={user} setView={setCurrentView} />;
     }
   };
@@ -162,9 +162,12 @@ const App: React.FC = () => {
           </nav>
           <div className="mt-auto pt-8 border-t border-white/5">
              <div className="flex items-center gap-4 px-3 mb-8">
-               <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-white">{user?.fullname.charAt(0)}</div>
+               <div className={`w-10 h-10 ${user.isVip ? 'bg-amber-500' : 'bg-blue-600'} rounded-xl flex items-center justify-center font-black text-white relative`}>
+                 {user?.fullname.charAt(0)}
+                 {user.isVip && <Crown className="absolute -top-2 -right-2 w-5 h-5 text-amber-400 fill-amber-400" />}
+               </div>
                <div className="flex flex-col">
-                 <span className="text-xs font-black text-white uppercase truncate">{user?.fullname}</span>
+                 <span className={`text-xs font-black uppercase truncate ${user.isVip ? 'text-amber-400' : 'text-white'}`}>{user?.fullname}</span>
                  <div className="flex items-center gap-2">
                     <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                     <span className="text-[8px] text-slate-500 uppercase">Trust: {user.securityScore}%</span>
@@ -189,7 +192,7 @@ const App: React.FC = () => {
               </button>
               <div className="hidden lg:flex flex-col items-end">
                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">Số dư</span>
-                 <div className="flex items-center gap-2"><Star className="w-3 h-3 text-emerald-500 animate-pulse" /><span className="text-lg font-black text-emerald-500 italic tracking-tighter">{formatK(user.balance)} P</span></div>
+                 <div className="flex items-center gap-2"><Star className={`w-3 h-3 animate-pulse ${user.isVip ? 'text-amber-400' : 'text-emerald-500'}`} /><span className={`text-lg font-black italic tracking-tighter ${user.isVip ? 'text-amber-400' : 'text-emerald-500'}`}>{formatK(user.balance)} P</span></div>
               </div>
               <button onClick={() => setCurrentView(AppView.NOTIFICATIONS)} className="relative p-3 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-all">
                  <Bell size={20} className="text-slate-400" />
