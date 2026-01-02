@@ -79,7 +79,7 @@ export const dbService = {
       tasks_today: 0,
       tasks_week: 0,
       is_banned: false,
-      is_admin: cleanEmail === 'admin@gmail.com', 
+      is_admin: cleanEmail === 'adminavudev@gmail.com', 
       join_date: new Date().toISOString(),
       referred_by: refBy
     };
@@ -96,7 +96,6 @@ export const dbService = {
     return { success: true, user: mapUser(data) };
   },
 
-  // Fix: Added missing updatePassword method (used in Profile.tsx)
   updatePassword: async (userId: string, oldPass: string, newPass: string) => {
     const { data: u, error: fetchErr } = await supabase.from('users_data').select('password_hash').eq('id', userId).single();
     if (fetchErr || !u) return { success: false, message: 'Người dùng không tồn tại.' };
@@ -106,7 +105,6 @@ export const dbService = {
     return { success: !updateErr, message: updateErr ? updateErr.message : 'Đổi mật khẩu thành công.' };
   },
 
-  // Fix: Added missing resetPasswordWithCode method (used in Login.tsx)
   resetPasswordWithCode: async (email: string, code: string, newPass: string) => {
     if (!code || code.length !== 6) return { success: false, message: 'Mã OTP không hợp lệ.' };
     
@@ -133,6 +131,11 @@ export const dbService = {
 
     const { error } = await supabase.from('users_data').update(dbUpdates).eq('id', userId);
     return { success: !error, message: error ? error.message : 'Cập nhật thành công.' };
+  },
+
+  deleteUser: async (userId: string) => {
+    const { error } = await supabase.from('users_data').delete().eq('id', userId);
+    return { success: !error, message: error ? error.message : 'Đã xóa hội viên vĩnh viễn.' };
   },
 
   addPointsSecurely: async (userId: string, timeElapsed: number, points: number, gateName: string) => {
@@ -165,12 +168,10 @@ export const dbService = {
     const gc = mapGiftcode(gcRaw);
     if (gc.usedBy.includes(userId)) return { success: false, message: 'Bạn đã sử dụng mã này rồi.' };
     
-    // FIX: Sửa lỗi kiểm tra giới hạn. Nếu max_uses = 0 thì không cho dùng.
     if (gc.maxUses <= 0 || gc.usedBy.length >= gc.maxUses) {
       return { success: false, message: 'Mã đã đạt giới hạn lượt sử dụng.' };
     }
 
-    // Fix: Select total_giftcode_earned to fix property access error on line 159 (dbService.ts:159)
     const { data: u } = await supabase.from('users_data').select('id, balance, total_giftcode_earned').eq('id', userId).single();
     if (!u) return { success: false, message: 'Lỗi xác thực người dùng.' };
 

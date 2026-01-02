@@ -12,37 +12,43 @@ import {
   Users,
   Sparkles
 } from 'lucide-react';
-import { User } from '../types.ts';
+import { User, VipTier } from '../types.ts';
 
 const Leaderboard: React.FC = () => {
-  const [users, setUsers] = useState<Partial<User>[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
 
-  // Fix: dbService.getAllUsers is async.
   useEffect(() => {
     const fetchUsers = async () => {
       const all = await dbService.getAllUsers();
       const sorted = all
         .filter(u => !u.isBanned)
         .sort((a, b) => (b.balance || 0) - (a.balance || 0));
-      
-      if (sorted.length === 0) {
-        setUsers([
-          { fullname: 'NOVA MASTER', balance: 5000000 },
-          { fullname: 'ELITE WARRIOR', balance: 3500000 },
-          { fullname: 'DIAMOND KING', balance: 2800000 },
-          { fullname: 'CRYPTO MINER', balance: 1200000 },
-          { fullname: 'TASK HUNTER', balance: 950000 },
-        ]);
-      } else {
-        setUsers(sorted.slice(0, 10));
-      }
+      setUsers(sorted.slice(0, 10));
     };
     fetchUsers();
   }, []);
 
-  const top1 = users[0] || { fullname: 'Chưa có', balance: 0 };
-  const top2 = users[1] || { fullname: 'Chưa có', balance: 0 };
-  const top3 = users[2] || { fullname: 'Chưa có', balance: 0 };
+  const getVipRichStyle = (tier: VipTier) => {
+    switch(tier) {
+      case VipTier.ELITE: return 'elite-border-rich';
+      case VipTier.PRO: return 'pro-border-rich';
+      case VipTier.BASIC: return 'basic-border-rich';
+      default: return 'border-white/10';
+    }
+  };
+
+  const getVipCrownColor = (tier: VipTier) => {
+    switch(tier) {
+      case VipTier.ELITE: return 'text-purple-400 fill-purple-400';
+      case VipTier.PRO: return 'text-amber-400 fill-amber-400';
+      case VipTier.BASIC: return 'text-blue-400 fill-blue-400';
+      default: return 'text-slate-400 fill-slate-400';
+    }
+  };
+
+  const top1 = users[0];
+  const top2 = users[1];
+  const top3 = users[2];
 
   return (
     <div className="space-y-12 animate-in fade-in duration-700 pb-20">
@@ -58,60 +64,69 @@ const Leaderboard: React.FC = () => {
                <h1 className="text-6xl md:text-8xl font-black text-white leading-none uppercase tracking-tighter italic drop-shadow-2xl">
                 VINH <span className="bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 bg-clip-text text-transparent">QUANG</span>
                </h1>
-               <p className="text-[10px] font-black text-blue-500/40 uppercase tracking-[0.5em] italic mt-4 ml-1">hoangmaianhvu-dev-bot-web</p>
+               <p className="text-[10px] font-black text-blue-500/40 uppercase tracking-[0.5em] italic mt-4 ml-1">diamond nova vinh danh cao thủ</p>
             </div>
         </div>
       </div>
 
       {/* Podium */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-10 px-4">
-        {/* Silver */}
-        <div className="order-2 md:order-1 glass-card p-10 rounded-[3.5rem] flex flex-col items-center text-center relative mt-12 border-slate-400/20 bg-gradient-to-b from-slate-400/5 to-transparent hover:scale-105 transition-all">
-          <div className="absolute -top-14 left-1/2 -translate-x-1/2">
-            <div className="w-24 h-24 bg-gradient-to-br from-slate-300 to-slate-500 rounded-[2rem] flex items-center justify-center border-4 border-slate-700 shadow-xl">
-              <Medal className="w-12 h-12 text-slate-100" />
+        {/* Top 2 */}
+        {top2 && (
+          <div className="order-2 md:order-1 glass-card p-10 rounded-[3.5rem] flex flex-col items-center text-center relative mt-12 border-slate-400/20 bg-gradient-to-b from-slate-400/5 to-transparent hover:scale-105 transition-all">
+            <div className="absolute -top-14 left-1/2 -translate-x-1/2">
+              <div className={`w-24 h-24 rounded-[2rem] flex items-center justify-center border-4 relative ${getVipRichStyle(top2.vipTier)} bg-slate-800`}>
+                {top2.avatarUrl ? <img src={top2.avatarUrl} className="w-full h-full object-cover rounded-[1.8rem]" /> : <Medal className="w-12 h-12 text-slate-100" />}
+                {top2.isVip && <Crown className={`absolute -top-5 -right-5 w-10 h-10 vip-crown-float ${getVipCrownColor(top2.vipTier)}`} />}
+              </div>
+              <div className="absolute -bottom-2 -right-2 bg-slate-800 text-white w-10 h-10 rounded-xl flex items-center justify-center font-black border-2 border-slate-600 text-lg">2</div>
             </div>
-            <div className="absolute -bottom-2 -right-2 bg-slate-800 text-white w-10 h-10 rounded-xl flex items-center justify-center font-black border-2 border-slate-600 text-lg">2</div>
+            <h3 className="mt-12 font-black text-2xl text-white mb-2 uppercase italic truncate w-full px-4">{top2.fullname}</h3>
+            <div className="flex items-center gap-2 mb-4">
+               <Star className="w-4 h-4 text-slate-400" />
+               <p className="text-slate-200 font-black text-3xl italic tracking-tighter">{formatK(top2.balance)}</p>
+               <span className="text-slate-500 font-black text-xs uppercase">P</span>
+            </div>
           </div>
-          <h3 className="mt-12 font-black text-2xl text-white mb-2 uppercase italic truncate w-full px-4">{top2.fullname}</h3>
-          <div className="flex items-center gap-2 mb-4">
-             <Star className="w-4 h-4 text-slate-400" />
-             <p className="text-slate-200 font-black text-3xl italic tracking-tighter">{formatK(top2.balance as number)}</p>
-             <span className="text-slate-500 font-black text-xs uppercase">P</span>
-          </div>
-        </div>
+        )}
 
-        {/* Gold */}
-        <div className="order-1 md:order-2 glass-card p-12 rounded-[4rem] flex flex-col items-center text-center relative transform scale-110 border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-transparent shadow-[0_0_60px_rgba(245,158,11,0.15)]">
-          <div className="absolute -top-16 left-1/2 -translate-x-1/2">
-            <div className="w-28 h-28 bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 rounded-[2.5rem] flex items-center justify-center border-4 border-amber-300 shadow-glow-amber animate-pulse">
-              <Crown className="w-16 h-16 text-white" />
+        {/* Top 1 */}
+        {top1 && (
+          <div className="order-1 md:order-2 glass-card p-12 rounded-[4rem] flex flex-col items-center text-center relative transform scale-110 border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-transparent shadow-[0_0_60px_rgba(245,158,11,0.15)]">
+            <div className="absolute -top-16 left-1/2 -translate-x-1/2">
+              <div className={`w-28 h-28 rounded-[2.5rem] flex items-center justify-center border-4 relative ${getVipRichStyle(top1.vipTier)} bg-slate-900 shadow-glow-amber animate-pulse`}>
+                {top1.avatarUrl ? <img src={top1.avatarUrl} className="w-full h-full object-cover rounded-[2.2rem]" /> : <Crown className="w-16 h-16 text-amber-400" />}
+                {top1.isVip && <Crown className={`absolute -top-6 -right-6 w-12 h-12 vip-crown-float ${getVipCrownColor(top1.vipTier)}`} />}
+              </div>
+              <div className="absolute -bottom-2 -right-2 bg-amber-400 text-slate-950 w-12 h-12 rounded-2xl flex items-center justify-center font-black border-2 border-slate-950 text-xl shadow-2xl">1</div>
             </div>
-            <div className="absolute -bottom-2 -right-2 bg-amber-400 text-slate-950 w-12 h-12 rounded-2xl flex items-center justify-center font-black border-2 border-slate-950 text-xl shadow-2xl">1</div>
+            <h3 className="mt-14 font-black text-3xl text-white mb-2 uppercase italic truncate w-full px-4">{top1.fullname}</h3>
+            <div className="flex items-center gap-2 mb-6">
+               <Sparkles className="w-6 h-6 text-amber-400 animate-bounce" />
+               <p className="text-amber-400 font-black text-5xl italic tracking-tighter">{formatK(top1.balance)}</p>
+               <span className="text-amber-600 font-black text-lg uppercase">P</span>
+            </div>
           </div>
-          <h3 className="mt-14 font-black text-3xl text-white mb-2 uppercase italic truncate w-full px-4">{top1.fullname}</h3>
-          <div className="flex items-center gap-2 mb-6">
-             <Sparkles className="w-6 h-6 text-amber-400 animate-bounce" />
-             <p className="text-amber-400 font-black text-5xl italic tracking-tighter">{formatK(top1.balance as number)}</p>
-             <span className="text-amber-600 font-black text-lg uppercase">P</span>
-          </div>
-        </div>
+        )}
 
-        {/* Bronze */}
-        <div className="order-3 md:order-3 glass-card p-10 rounded-[3.5rem] flex flex-col items-center text-center relative mt-12 border-orange-700/20 bg-gradient-to-b from-orange-700/5 to-transparent hover:scale-105 transition-all">
-          <div className="absolute -top-14 left-1/2 -translate-x-1/2">
-            <div className="w-24 h-24 bg-gradient-to-br from-orange-600 to-orange-800 rounded-[2rem] flex items-center justify-center border-4 border-orange-900 shadow-xl">
-              <Medal className="w-12 h-12 text-orange-200" />
+        {/* Top 3 */}
+        {top3 && (
+          <div className="order-3 md:order-3 glass-card p-10 rounded-[3.5rem] flex flex-col items-center text-center relative mt-12 border-orange-700/20 bg-gradient-to-b from-orange-700/5 to-transparent hover:scale-105 transition-all">
+            <div className="absolute -top-14 left-1/2 -translate-x-1/2">
+              <div className={`w-24 h-24 rounded-[2rem] flex items-center justify-center border-4 relative ${getVipRichStyle(top3.vipTier)} bg-slate-800`}>
+                {top3.avatarUrl ? <img src={top3.avatarUrl} className="w-full h-full object-cover rounded-[1.8rem]" /> : <Medal className="w-12 h-12 text-orange-200" />}
+                {top3.isVip && <Crown className={`absolute -top-5 -right-5 w-10 h-10 vip-crown-float ${getVipCrownColor(top3.vipTier)}`} />}
+              </div>
+              <div className="absolute -bottom-2 -right-2 bg-orange-900 text-white w-10 h-10 rounded-xl flex items-center justify-center font-black border-2 border-orange-700 text-lg">3</div>
             </div>
-            <div className="absolute -bottom-2 -right-2 bg-orange-900 text-white w-10 h-10 rounded-xl flex items-center justify-center font-black border-2 border-orange-700 text-lg">3</div>
+            <h3 className="mt-12 font-black text-2xl text-white mb-2 uppercase italic truncate w-full px-4">{top3.fullname}</h3>
+            <div className="flex items-center gap-2 mb-4">
+               <Star className="w-4 h-4 text-orange-500" />
+               <p className="text-slate-200 font-black text-3xl italic tracking-tighter">{formatK(top3.balance)}</p>
+               <span className="text-slate-500 font-black text-xs uppercase">P</span>
+            </div>
           </div>
-          <h3 className="mt-12 font-black text-2xl text-white mb-2 uppercase italic truncate w-full px-4">{top3.fullname}</h3>
-          <div className="flex items-center gap-2 mb-4">
-             <Star className="w-4 h-4 text-orange-500" />
-             <p className="text-slate-200 font-black text-3xl italic tracking-tighter">{formatK(top3.balance as number)}</p>
-             <span className="text-slate-500 font-black text-xs uppercase">P</span>
-          </div>
-        </div>
+        )}
       </div>
 
       <div className="glass-card rounded-[4rem] overflow-hidden border border-white/5 bg-slate-900/10 shadow-3xl">
@@ -120,9 +135,9 @@ const Leaderboard: React.FC = () => {
              <div className="p-3 bg-blue-600/10 rounded-2xl border border-blue-500/20">
                <Users className="w-6 h-6 text-blue-400" />
              </div>
-             <h4 className="text-xl font-black text-white uppercase italic tracking-tighter">BẢNG XẾP HẠNG</h4>
+             <h4 className="text-xl font-black text-white uppercase italic tracking-tighter">DANH SÁCH VINH DANH</h4>
            </div>
-           <div className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic">hoangmaianhvu-dev-bot-web • Vision 1.0</div>
+           <div className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic">CẬP NHẬT THỜI GIAN THỰC</div>
         </div>
         
         <div className="overflow-x-auto">
@@ -142,13 +157,19 @@ const Leaderboard: React.FC = () => {
                   </td>
                   <td className="px-10 py-8">
                     <div className="flex items-center gap-5">
-                      <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-sm font-black text-white italic border border-white/10">{user.fullname?.charAt(0)}</div>
-                      <span className="font-black text-slate-200 uppercase italic text-base group-hover:text-white transition-colors">{user.fullname}</span>
+                      <div className={`w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-sm font-black text-white italic border-2 relative ${getVipRichStyle(user.vipTier)}`}>
+                        {user.avatarUrl ? <img src={user.avatarUrl} className="w-full h-full object-cover rounded-xl" /> : user.fullname.charAt(0)}
+                        {user.isVip && <Crown className={`absolute -top-3 -right-3 w-6 h-6 vip-crown-float ${getVipCrownColor(user.vipTier)}`} />}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-black text-slate-200 uppercase italic text-base group-hover:text-white transition-colors">{user.fullname}</span>
+                        {user.isVip && <span className={`text-[8px] font-black uppercase italic tracking-widest ${user.vipTier === VipTier.ELITE ? 'text-purple-400' : user.vipTier === VipTier.PRO ? 'text-amber-400' : 'text-blue-400'}`}>HỘI VIÊN {user.vipTier}</span>}
+                      </div>
                     </div>
                   </td>
                   <td className="px-10 py-8 text-right">
                     <div className="flex items-center justify-end gap-3">
-                      <span className="font-black text-2xl text-white italic tracking-tighter">{formatK(user.balance as number)}</span>
+                      <span className="font-black text-2xl text-white italic tracking-tighter">{formatK(user.balance)}</span>
                       <div className="p-2 bg-blue-500/10 rounded-xl text-blue-500">
                         <ArrowUp className="w-4 h-4" />
                       </div>

@@ -30,27 +30,15 @@ export const SOCIAL_LINKS = {
   telegramGroup: "https://t.me/diamondnova_group",
   youtube: "https://youtube.com/@diamondnova",
   zalo: "https://zalo.me/0337117930",
-  telegramBot: "https://t.me/anhvudev_kiemtienonline_bot" // Cập nhật bot lấy mã OTP
+  telegramBot: "https://t.me/anhvudev_kiemtienonline_bot"
 };
 
 export const WITHDRAW_MILESTONES = [5000, 10000, 20000, 50000, 100000, 200000, 500000];
 export const DIAMOND_EXCHANGE: Record<number, number> = {
-  5000: 25,
-  10000: 55,
-  20000: 115,
-  50000: 285,
-  100000: 600,
-  200000: 1250,
-  500000: 3200
+  5000: 25, 10000: 55, 20000: 115, 50000: 285, 100000: 600, 200000: 1250, 500000: 3200
 };
 export const QUAN_HUY_EXCHANGE: Record<number, number> = {
-  5000: 10,
-  10000: 20,
-  20000: 42,
-  50000: 108,
-  100000: 220,
-  200000: 450,
-  500000: 1150
+  5000: 10, 10000: 20, 20000: 42, 50000: 108, 100000: 220, 200000: 450, 500000: 1150
 };
 
 export const ADMIN_BANKS = [
@@ -85,11 +73,11 @@ export const NAV_ITEMS = [
   { id: AppView.REFERRAL, label: 'Mời Bạn Bè', icon: <Users /> },
   { id: AppView.GUIDE, label: 'Hướng dẫn', icon: <BookOpen /> },
   { id: AppView.PROFILE, label: 'Tài Khoản', icon: <User /> },
-  { id: AppView.ADMIN, label: 'Hệ Thống', icon: <Cloud />, adminOnly: true },
+  { id: AppView.ADMIN, label: 'HỆ THỐNG', icon: <Cloud />, adminOnly: true },
 ];
 
 export const formatK = (num: number | undefined | null): string => {
-  if (num === undefined || num === null || num === 0) return "0";
+  if (!num) return "0";
   const absNum = Math.abs(num);
   if (absNum >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
   if (absNum >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';

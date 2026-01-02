@@ -7,7 +7,7 @@ import {
   Users, CreditCard, Ticket, Megaphone, ImageIcon, Eye, EyeOff, Trash2, 
   PlusCircle, Search, CheckCircle2, XCircle, Settings, UserMinus, 
   UserPlus, ShieldAlert, Ban, Unlock, Wallet, Activity, TrendingUp, DollarSign,
-  RefreshCcw, UserX, AlertTriangle, Loader2, X
+  RefreshCcw, UserX, AlertTriangle, Loader2, X, ShieldCheck
 } from 'lucide-react';
 
 interface AdminProps {
@@ -18,6 +18,20 @@ interface AdminProps {
 }
 
 export default function Admin({ user, onUpdateUser, setSecurityModal, showToast }: AdminProps) {
+  // --- LỚP BẢO MẬT TUYỆT ĐỐI ---
+  if (!user.isAdmin) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-10 animate-in zoom-in-95">
+        <div className="glass-card p-16 rounded-[4rem] border-2 border-red-500/30 text-center space-y-6">
+          <ShieldAlert className="w-24 h-24 text-red-500 mx-auto animate-bounce" />
+          <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter">TRUY CẬP BỊ NGĂN CHẶN</h2>
+          <p className="text-slate-500 font-bold italic uppercase tracking-widest text-xs">Bạn không có quyền hạn truy cập khu vực HỆ THỐNG.</p>
+          <button onClick={() => window.location.reload()} className="px-10 py-4 bg-red-600 text-white font-black rounded-2xl uppercase italic text-[10px] tracking-widest">QUAY LẠI AN TOÀN</button>
+        </div>
+      </div>
+    );
+  }
+
   const [tab, setTab] = useState<'users' | 'withdrawals' | 'ads' | 'giftcodes' | 'announcements'>('users');
   const [users, setUsers] = useState<User[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
@@ -87,6 +101,21 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast 
     setIsActionLoading(false);
   };
 
+  const handleDeleteUser = async (u: User) => {
+    if (u.email === 'adminavudev@gmail.com') return alert("Không thể xóa tài khoản Admin hệ thống!");
+    if (!confirm(`CẢNH BÁO: Xóa vĩnh viễn hội viên ${u.fullname}? Hành động này không thể hoàn tác!`)) return;
+    
+    setIsActionLoading(true);
+    const res = await dbService.deleteUser(u.id);
+    if (res.success) {
+      showToast('ADMIN', res.message, 'success');
+      await refreshData();
+    } else {
+      showToast('ADMIN', res.message, 'error');
+    }
+    setIsActionLoading(false);
+  };
+
   const handleWithdrawAction = async (id: string, s: string) => {
     await dbService.updateWithdrawalStatus(id, s);
     showToast('ADMIN', `Đơn rút ${s.toUpperCase()}`, 'info');
@@ -100,62 +129,80 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast 
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in pb-24">
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+    <div className="space-y-10 animate-in fade-in pb-32">
+      {/* Admin Identity Banner */}
+      <div className="glass-card p-8 rounded-[3.5rem] border border-blue-500/20 bg-blue-600/5 flex items-center justify-between shadow-2xl">
+         <div className="flex items-center gap-6">
+            <div className="p-4 bg-blue-600 rounded-3xl shadow-lg shadow-blue-600/30">
+               <ShieldCheck className="w-10 h-10 text-white" />
+            </div>
+            <div>
+               <h1 className="text-3xl font-black text-white italic uppercase tracking-tighter leading-none">NOVA COMMAND CENTER</h1>
+               <div className="flex items-center gap-2 mt-2">
+                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Hệ thống đang được kiểm soát bởi: <span className="text-blue-400">ADMIN DIAMOND NOVA</span></span>
+               </div>
+            </div>
+         </div>
+         <button onClick={refreshData} className="px-8 py-3 bg-slate-900 text-slate-500 rounded-2xl hover:text-white border border-white/5 transition-all font-black text-[10px] uppercase tracking-widest italic flex items-center gap-3"><RefreshCcw size={14} /> TẢI LẠI DỮ LIỆU</button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-5">
         {[
-          { label: 'Hội viên', val: stats.totalUsers, color: 'border-l-blue-600', bg: 'bg-blue-600/5', icon: <Users className="text-blue-500" /> },
-          { label: 'Tổng Điểm', val: formatK(stats.totalPoints), color: 'border-l-amber-600', bg: 'bg-amber-600/5', icon: <Wallet className="text-amber-500" /> },
-          { label: 'Tiền mặt', val: `${stats.realMoney.toLocaleString()}đ`, color: 'border-l-emerald-600', bg: 'bg-emerald-600/5', icon: <DollarSign className="text-emerald-500" /> },
-          { label: 'Đơn Chờ', val: stats.pendingWithdrawals, color: 'border-l-rose-600', bg: 'bg-rose-600/5', icon: <Activity className="text-rose-500" /> },
+          { label: 'Tổng Hội viên', val: stats.totalUsers, color: 'border-l-blue-600', bg: 'bg-blue-600/5', icon: <Users className="text-blue-500" /> },
+          { label: 'Kho Điểm Nova', val: formatK(stats.totalPoints), color: 'border-l-amber-600', bg: 'bg-amber-600/5', icon: <Wallet className="text-amber-500" /> },
+          { label: 'Dự chi (VND)', val: `${stats.realMoney.toLocaleString()}đ`, color: 'border-l-emerald-600', bg: 'bg-emerald-600/5', icon: <DollarSign className="text-emerald-500" /> },
+          { label: 'Đơn Rút Chờ', val: stats.pendingWithdrawals, color: 'border-l-rose-600', bg: 'bg-rose-600/5', icon: <Activity className="text-rose-500" /> },
           { label: 'Online 24h', val: stats.activeUsers, color: 'border-l-indigo-600', bg: 'bg-indigo-600/5', icon: <TrendingUp className="text-indigo-500" /> }
         ].map((s, i) => (
-          <div key={i} className={`glass-card p-6 rounded-[2rem] border-l-4 ${s.color} ${s.bg}`}>
-             {React.cloneElement(s.icon as any, { size: 20, className: 'mb-2' })}
-             <p className="text-[9px] font-black text-slate-500 uppercase italic">{s.label}</p>
-             <h3 className="text-xl font-black text-white italic">{s.val}</h3>
+          <div key={i} className={`glass-card p-7 rounded-[2.5rem] border-l-8 ${s.color} ${s.bg} shadow-lg group hover:scale-105 transition-all`}>
+             {React.cloneElement(s.icon as any, { size: 24, className: 'mb-4 group-hover:rotate-12 transition-transform' })}
+             <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] mb-1 italic">{s.label}</p>
+             <h3 className="text-2xl font-black text-white italic tracking-tighter">{s.val}</h3>
           </div>
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-3">
         {['users', 'withdrawals', 'ads', 'giftcodes', 'announcements'].map(t => (
-          <button key={t} onClick={() => setTab(t as any)} className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase italic transition-all ${tab === t ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-900 text-slate-500 hover:bg-slate-800'}`}>
-            {t === 'users' ? 'Hội viên' : t === 'withdrawals' ? 'Rút tiền' : t === 'ads' ? 'Quảng cáo' : t === 'giftcodes' ? 'Giftcodes' : 'Thông báo'}
+          <button key={t} onClick={() => setTab(t as any)} className={`px-8 py-4 rounded-2xl font-black text-[11px] uppercase italic tracking-widest transition-all ${tab === t ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/20' : 'bg-slate-900 text-slate-500 hover:bg-slate-800'}`}>
+            {t === 'users' ? 'Quản lý Hội viên' : t === 'withdrawals' ? 'Duyệt Rút tiền' : t === 'ads' ? 'Ads Banner' : t === 'giftcodes' ? 'Mã Quà Tặng' : 'Tin Hệ Thống'}
           </button>
         ))}
-        <button onClick={refreshData} className="ml-auto p-3 bg-slate-900 text-slate-500 rounded-xl hover:text-white"><RefreshCcw size={14} /></button>
       </div>
 
-      <div className="glass-card p-8 rounded-[3rem] border border-white/5 bg-slate-950/40 min-h-[500px]">
+      <div className="glass-card p-10 rounded-[3.5rem] border border-white/5 bg-slate-950/40 min-h-[600px] shadow-3xl">
         {tab === 'users' && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div className="flex justify-between items-center gap-4">
-               <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">DANH SÁCH HỘI VIÊN</h3>
-               <div className="relative flex-1 max-w-xs">
-                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
-                 <input type="text" placeholder="Tìm tên..." value={searchUser} onChange={e => setSearchUser(e.target.value)} className="w-full bg-slate-900 border border-white/5 rounded-xl pl-12 pr-4 py-3 text-xs text-white outline-none" />
+               <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">DANH SÁCH THÀNH VIÊN</h3>
+               <div className="relative flex-1 max-w-sm">
+                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600" />
+                 <input type="text" placeholder="Tìm tên hoặc email hội viên..." value={searchUser} onChange={e => setSearchUser(e.target.value)} className="w-full bg-black border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-xs font-bold text-white outline-none focus:border-blue-500 transition-all shadow-inner" />
                </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead><tr className="text-[10px] font-black text-slate-500 uppercase italic border-b border-white/5"><th className="px-4 py-4">Tên / Gmail</th><th className="px-4 py-4">Hạng</th><th className="px-4 py-4">Số dư</th><th className="px-4 py-4 text-right">Menu</th></tr></thead>
+                <thead><tr className="text-[10px] font-black text-slate-500 uppercase italic border-b border-white/5 tracking-[0.2em]"><th className="px-6 py-6">Thành viên</th><th className="px-6 py-6">Cấp độ</th><th className="px-6 py-6">Số dư</th><th className="px-6 py-6 text-right">Quản trị</th></tr></thead>
                 <tbody className="divide-y divide-white/5">
                   {filteredUsers.map((u) => (
-                    <tr key={u.id} className={`text-xs group hover:bg-white/[0.02] ${u.isBanned ? 'bg-red-500/5' : ''}`}>
-                      <td className="px-4 py-6">
-                         <div className="font-bold text-white uppercase flex items-center gap-2">{u.fullname} {u.isBanned && <span className="text-red-500 text-[8px] animate-pulse">BỊ KHÓA</span>}</div>
-                         <div className="text-[9px] text-slate-500 mt-1">{u.email}</div>
+                    <tr key={u.id} className={`text-xs group hover:bg-white/[0.03] transition-all ${u.isBanned ? 'bg-red-500/5' : ''}`}>
+                      <td className="px-6 py-7">
+                         <div className="font-black text-white uppercase flex items-center gap-3 italic text-sm">{u.fullname} {u.isBanned && <span className="text-red-500 text-[8px] bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">BỊ KHÓA</span>}</div>
+                         <div className="text-[10px] text-slate-600 font-bold mt-1 tracking-wider">{u.email}</div>
                       </td>
-                      <td className="px-4 py-6"><span className={`px-2 py-1 rounded text-[9px] font-black ${u.isVip ? 'text-amber-500 bg-amber-500/10' : 'text-slate-500'}`}>{u.vipTier.toUpperCase()}</span></td>
-                      <td className="px-4 py-6 font-black text-emerald-500">{u.balance.toLocaleString()} P</td>
-                      <td className="px-4 py-6 text-right relative">
-                        <button onClick={() => setActiveUserMenu(activeUserMenu === u.id ? null : u.id)} className="p-2 rounded-lg bg-slate-900 text-slate-400 border border-white/5"><Settings size={14} /></button>
+                      <td className="px-6 py-7"><span className={`px-4 py-1.5 rounded-xl text-[9px] font-black italic border ${u.isVip ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' : 'text-slate-600 bg-slate-900 border-white/5'}`}>{u.vipTier.toUpperCase()}</span></td>
+                      <td className="px-6 py-7 font-black text-emerald-500 text-base">{u.balance.toLocaleString()} P</td>
+                      <td className="px-6 py-7 text-right relative">
+                        <button onClick={() => setActiveUserMenu(activeUserMenu === u.id ? null : u.id)} className={`p-3 rounded-xl transition-all ${activeUserMenu === u.id ? 'bg-blue-600 text-white' : 'bg-slate-900 text-slate-500 hover:text-white border border-white/5'}`}><Settings size={18} /></button>
                         {activeUserMenu === u.id && (
-                          <div className="absolute right-4 top-14 z-[100] w-48 glass-card border border-white/10 rounded-2xl p-2 shadow-2xl animate-in fade-in slide-in-from-top-2">
-                             <button onClick={() => handleToggleBan(u)} className={`w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-left text-[10px] font-bold ${u.isBanned ? 'text-emerald-500' : 'text-rose-500'}`}>{u.isBanned ? <Unlock size={14} /> : <Ban size={14} />} {u.isBanned ? 'Mở Khóa' : 'Khóa Tài Khoản'}</button>
-                             <button onClick={() => handleAdjustPoints(u.id, true)} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-[10px] text-emerald-400 font-bold"><UserPlus size={14} /> Cộng Điểm</button>
-                             <button onClick={() => handleAdjustPoints(u.id, false)} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-[10px] text-amber-500 font-bold"><UserMinus size={14} /> Trừ Điểm</button>
-                             <button onClick={() => { setActiveUserMenu(null); setSecurityModal({ isOpen: true, score: u.securityScore || 100 }); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-[10px] text-blue-400 font-bold"><ShieldAlert size={14} /> Kiểm Tra Sentinel</button>
+                          <div className="absolute right-6 top-16 z-[100] w-64 glass-card border border-white/10 rounded-3xl p-3 shadow-3xl animate-in fade-in slide-in-from-top-4">
+                             <button onClick={() => handleToggleBan(u)} className={`w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-white/5 text-left text-xs font-black italic uppercase ${u.isBanned ? 'text-emerald-500' : 'text-rose-500'}`}>{u.isBanned ? <Unlock size={16} /> : <Ban size={16} />} {u.isBanned ? 'Mở Khóa Hội Viên' : 'Khóa Tài Khoản'}</button>
+                             <button onClick={() => handleAdjustPoints(u.id, true)} className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-white/5 text-left text-xs font-black italic uppercase text-emerald-400"><UserPlus size={16} /> Cộng Điểm Nova</button>
+                             <button onClick={() => handleAdjustPoints(u.id, false)} className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-white/5 text-left text-xs font-black italic uppercase text-amber-500"><UserMinus size={16} /> Trừ Điểm Nova</button>
+                             <div className="h-px bg-white/5 my-2" />
+                             <button onClick={() => { setActiveUserMenu(null); setSecurityModal({ isOpen: true, score: u.securityScore || 100 }); }} className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-white/5 text-left text-xs font-black italic uppercase text-blue-400"><ShieldAlert size={16} /> Kiểm Tra Sentinel</button>
+                             <button onClick={() => handleDeleteUser(u)} className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-red-500/10 text-left text-xs font-black italic uppercase text-red-500"><UserX size={16} /> Xóa Hội Viên</button>
                           </div>
                         )}
                       </td>
@@ -168,21 +215,27 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast 
         )}
 
         {tab === 'withdrawals' && (
-          <div className="space-y-6">
-            <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">YÊU CẦU THANH TOÁN</h3>
+          <div className="space-y-8">
+            <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">PHÊ DUYỆT THANH TOÁN</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead><tr className="text-[10px] font-black text-slate-500 uppercase italic border-b border-white/5"><th className="px-4 py-4">Mã</th><th className="px-4 py-4">Hội Viên</th><th className="px-4 py-4">Tiền</th><th className="px-4 py-4">Duyệt</th></tr></thead>
+                <thead><tr className="text-[10px] font-black text-slate-500 uppercase italic border-b border-white/5 tracking-widest"><th className="px-6 py-6">Mã Đơn</th><th className="px-6 py-6">Hội Viên</th><th className="px-6 py-6">Số Tiền</th><th className="px-6 py-6 text-right">Tình Trạng</th></tr></thead>
                 <tbody className="divide-y divide-white/5">
                   {withdrawals.map(w => (
-                    <tr key={w.id} className="text-xs hover:bg-white/[0.02]">
-                      <td className="px-4 py-6 font-black text-blue-500">#{w.id.slice(0, 6)}</td>
-                      <td className="px-4 py-6"><div className="font-bold text-white uppercase">{w.user_name}</div><div className="text-[9px] text-slate-500 truncate max-w-[120px]">{w.details}</div></td>
-                      <td className="px-4 py-6 font-black text-white">{w.amount.toLocaleString()}đ</td>
-                      <td className="px-4 py-6 text-right">
+                    <tr key={w.id} className="text-xs hover:bg-white/[0.03] transition-all">
+                      <td className="px-6 py-8 font-black text-blue-500 italic">#ORD-{w.id.slice(0, 8).toUpperCase()}</td>
+                      <td className="px-6 py-8">
+                         <div className="font-black text-white uppercase italic text-sm">{w.user_name}</div>
+                         <div className="text-[10px] text-slate-600 font-bold truncate max-w-[150px] mt-1">{w.details}</div>
+                      </td>
+                      <td className="px-6 py-8 font-black text-white text-base">{w.amount.toLocaleString()}đ</td>
+                      <td className="px-6 py-8 text-right">
                          {w.status === 'pending' ? (
-                           <div className="flex justify-end gap-2"><button onClick={() => handleWithdrawAction(w.id, 'completed')} className="p-2 bg-emerald-600/10 text-emerald-400 rounded-lg"><CheckCircle2 size={16} /></button><button onClick={() => handleWithdrawAction(w.id, 'rejected')} className="p-2 bg-red-600/10 text-red-500 rounded-lg"><XCircle size={16} /></button></div>
-                         ) : <span className="text-[9px] font-black uppercase text-slate-500">{w.status}</span>}
+                           <div className="flex justify-end gap-3">
+                              <button onClick={() => handleWithdrawAction(w.id, 'completed')} className="p-3 bg-emerald-600/10 text-emerald-400 rounded-2xl hover:bg-emerald-600 hover:text-white border border-emerald-500/20 transition-all shadow-lg shadow-emerald-500/10"><CheckCircle2 size={18} /></button>
+                              <button onClick={() => handleWithdrawAction(w.id, 'rejected')} className="p-3 bg-red-600/10 text-red-500 rounded-2xl hover:bg-red-600 hover:text-white border border-red-500/20 transition-all shadow-lg shadow-red-500/10"><XCircle size={18} /></button>
+                           </div>
+                         ) : <span className={`text-[10px] font-black uppercase italic px-4 py-1.5 rounded-full border ${w.status === 'completed' ? 'text-emerald-500 border-emerald-500/20 bg-emerald-500/5' : 'text-red-500 border-red-500/20 bg-red-500/5'}`}>{w.status}</span>}
                       </td>
                     </tr>
                   ))}
@@ -193,33 +246,51 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast 
         )}
 
         {tab === 'giftcodes' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center"><h3 className="text-xl font-black text-white italic uppercase tracking-tighter">GIFTCODE</h3><button onClick={() => setShowAddGc(true)} className="px-6 py-3 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg shadow-emerald-600/20">+ TẠO MÃ</button></div>
-            <table className="w-full text-left">
-              <thead><tr className="text-[10px] font-black text-slate-500 uppercase border-b border-white/5"><th className="px-4 py-4">Code</th><th className="px-4 py-4">Thưởng</th><th className="px-4 py-4">Dùng/Max</th><th className="px-4 py-4 text-right">Trạng Thái</th></tr></thead>
-              <tbody>
-                {giftcodes.map(g => (
-                  <tr key={g.code} className="text-xs hover:bg-white/[0.02]">
-                    <td className="px-4 py-6 font-black text-rose-500 tracking-widest">{g.code}</td>
-                    <td className="px-4 py-6 font-black text-emerald-500">{g.amount.toLocaleString()} P</td>
-                    <td className="px-4 py-6 text-slate-400 font-bold">{(g.usedBy || []).length} / {g.maxUses}</td>
-                    <td className="px-4 py-6 text-right"><span className={`px-2 py-1 rounded text-[8px] font-black italic ${g.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-500'}`}>{g.isActive ? 'ONLINE' : 'HẾT HẠN'}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-8">
+            <div className="flex justify-between items-center">
+               <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">QUẢN LÝ GIFTCODE</h3>
+               <button onClick={() => setShowAddGc(true)} className="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-xs font-black uppercase italic tracking-widest shadow-xl transition-all active:scale-95 flex items-center gap-3">
+                  <PlusCircle size={18} /> TẠO MÃ MỚI
+               </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead><tr className="text-[10px] font-black text-slate-500 uppercase border-b border-white/5 tracking-widest"><th className="px-6 py-6">Mã Key</th><th className="px-6 py-6">Giá Trị</th><th className="px-6 py-6">Sử Dụng</th><th className="px-6 py-6 text-right">Trạng Thái</th></tr></thead>
+                <tbody className="divide-y divide-white/5">
+                  {giftcodes.map(g => (
+                    <tr key={g.code} className="text-xs hover:bg-white/[0.03] transition-all">
+                      <td className="px-6 py-8 font-black text-rose-500 tracking-[0.3em] uppercase text-sm italic">{g.code}</td>
+                      <td className="px-6 py-8 font-black text-emerald-500 text-base">{g.amount.toLocaleString()} P</td>
+                      <td className="px-6 py-8 text-slate-500 font-black italic text-sm">{(g.usedBy || []).length} <span className="text-[10px] opacity-40">/</span> {g.maxUses}</td>
+                      <td className="px-6 py-8 text-right"><span className={`px-4 py-1.5 rounded-full text-[9px] font-black italic ${g.isActive ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>{g.isActive ? 'ĐANG KÍCH HOẠT' : 'ĐÃ KẾT THÚC'}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {tab === 'ads' && (
-          <div className="space-y-6">
-             <div className="flex justify-between items-center"><h3 className="text-xl font-black text-white italic uppercase tracking-tighter">BANNER QUẢNG CÁO</h3><button onClick={() => setShowAddAd(true)} className="px-6 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg">+ THÊM QUẢNG CÁO</button></div>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-8">
+             <div className="flex justify-between items-center">
+                <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">QUẢN TRỊ QUẢNG CÁO</h3>
+                <button onClick={() => setShowAddAd(true)} className="px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-black uppercase italic shadow-xl transition-all active:scale-95 flex items-center gap-3">
+                   <ImageIcon size={18} /> THÊM BANNER
+                </button>
+             </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {ads.map(ad => (
-                  <div key={ad.id} className="glass-card p-4 rounded-3xl border border-white/5 flex gap-4 items-center">
-                     <img src={ad.imageUrl} className="w-20 h-14 object-cover rounded-xl" />
-                     <div className="flex-1 overflow-hidden"><h4 className="text-[11px] font-black text-white uppercase truncate">{ad.title}</h4><p className="text-[9px] text-slate-500 truncate">{ad.targetUrl}</p></div>
-                     <div className="flex gap-1"><button onClick={() => dbService.updateAdStatus(ad.id, !ad.isActive).then(refreshData)} className="p-2 text-slate-500">{ad.isActive ? <Eye size={16} /> : <EyeOff size={16} />}</button><button onClick={() => dbService.deleteAd(ad.id).then(refreshData)} className="p-2 text-red-500"><Trash2 size={16} /></button></div>
+                  <div key={ad.id} className="glass-card p-6 rounded-[2.5rem] border border-white/5 flex gap-6 items-center group transition-all hover:border-blue-500/30">
+                     <img src={ad.imageUrl} className="w-24 h-16 object-cover rounded-2xl shadow-lg border border-white/5" />
+                     <div className="flex-1 overflow-hidden">
+                        <h4 className="text-xs font-black text-white uppercase truncate italic">{ad.title}</h4>
+                        <p className="text-[10px] text-slate-600 truncate mt-1 italic">{ad.targetUrl}</p>
+                     </div>
+                     <div className="flex gap-2">
+                        <button onClick={() => dbService.updateAdStatus(ad.id, !ad.isActive).then(refreshData)} className={`p-3 rounded-xl transition-all ${ad.isActive ? 'text-emerald-500 bg-emerald-500/10' : 'text-slate-600 bg-slate-900'}`}>{ad.isActive ? <Eye size={18} /> : <EyeOff size={18} />}</button>
+                        <button onClick={() => dbService.deleteAd(ad.id).then(refreshData)} className="p-3 text-red-500 bg-red-500/10 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={18} /></button>
+                     </div>
                   </div>
                 ))}
              </div>
@@ -227,13 +298,27 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast 
         )}
 
         {tab === 'announcements' && (
-          <div className="space-y-6">
-             <div className="flex justify-between items-center"><h3 className="text-xl font-black text-white italic uppercase tracking-tighter">THÔNG BÁO HỆ THỐNG</h3><button onClick={() => setShowAddAnn(true)} className="px-6 py-3 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg">+ ĐĂNG TIN</button></div>
-             <div className="space-y-3">
+          <div className="space-y-8">
+             <div className="flex justify-between items-center">
+                <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">THÔNG BÁO HỆ THỐNG</h3>
+                <button onClick={() => setShowAddAnn(true)} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-xs font-black uppercase italic shadow-xl transition-all active:scale-95 flex items-center gap-3">
+                   <Megaphone size={18} /> GỬI TIN MỚI
+                </button>
+             </div>
+             <div className="space-y-4">
                 {announcements.map(ann => (
-                  <div key={ann.id} className="p-5 glass-card rounded-[2rem] border border-white/5 flex justify-between items-center">
-                     <div><span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${ann.priority === 'high' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-400'}`}>{ann.priority}</span><h4 className="text-sm font-bold text-white uppercase mt-1">{ann.title}</h4></div>
-                     <div className="flex gap-2"><button onClick={() => dbService.updateAnnouncementStatus(ann.id, !ann.isActive).then(refreshData)} className="p-2 text-slate-500">{ann.isActive ? <Eye size={16} /> : <EyeOff size={16} />}</button><button onClick={() => dbService.deleteAnnouncement(ann.id).then(refreshData)} className="p-2 text-red-500"><Trash2 size={16} /></button></div>
+                  <div key={ann.id} className="p-6 glass-card rounded-[2.5rem] border border-white/5 flex justify-between items-center group hover:border-blue-500/30 transition-all">
+                     <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                           <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded italic border ${ann.priority === 'high' ? 'bg-red-500/10 text-red-500 border-red-500/20 animate-pulse' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>{ann.priority === 'high' ? 'KHẨN CẤP' : 'THƯỜNG'}</span>
+                           <span className="text-[9px] text-slate-600 font-bold italic">{new Date(ann.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <h4 className="text-base font-black text-white uppercase italic tracking-tight">{ann.title}</h4>
+                     </div>
+                     <div className="flex gap-2">
+                        <button onClick={() => dbService.updateAnnouncementStatus(ann.id, !ann.isActive).then(refreshData)} className={`p-3 rounded-xl transition-all ${ann.isActive ? 'text-blue-400 bg-blue-400/10' : 'text-slate-600 bg-slate-900'}`}>{ann.isActive ? <Eye size={18} /> : <EyeOff size={18} />}</button>
+                        <button onClick={() => dbService.deleteAnnouncement(ann.id).then(refreshData)} className="p-3 text-red-500 bg-red-500/10 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={18} /></button>
+                     </div>
                   </div>
                 ))}
              </div>
@@ -241,16 +326,64 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast 
         )}
       </div>
 
+      {/* MODALS */}
       {showAddGc && (
-        <div className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"><div className="glass-card w-full max-w-md p-10 rounded-[4rem] border border-white/10 animate-in zoom-in-95 relative"><button onClick={() => setShowAddGc(false)} className="absolute top-8 right-8 text-slate-500"><X /></button><h4 className="text-xl font-black text-white italic uppercase mb-8">TẠO GIFTCODE</h4><div className="space-y-4"><input type="text" placeholder="MÃ CODE" value={newGc.code} onChange={e => setNewGc({...newGc, code: e.target.value.toUpperCase()})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold" /><input type="number" placeholder="ĐIỂM THƯỞNG" value={newGc.amount} onChange={e => setNewGc({...newGc, amount: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold" /><input type="number" placeholder="LƯỢT DÙNG (MAX)" value={newGc.maxUses} onChange={e => setNewGc({...newGc, maxUses: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold" /><button onClick={handleCreateGiftcode} className="w-full py-5 bg-emerald-600 text-white font-black rounded-2xl uppercase italic tracking-widest shadow-lg shadow-emerald-600/20">KÍCH HOẠT MÃ</button></div></div></div>
+        <div className="fixed inset-0 z-[400] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6">
+           <div className="glass-card w-full max-w-md p-12 rounded-[4rem] border border-emerald-500/20 animate-in zoom-in-95 relative shadow-[0_0_100px_rgba(16,185,129,0.1)]">
+              <button onClick={() => setShowAddGc(false)} className="absolute top-8 right-8 text-slate-500 hover:text-white transition-colors"><X size={28} /></button>
+              <h4 className="text-3xl font-black text-white italic uppercase tracking-tighter mb-10 flex items-center gap-4 text-emerald-400"><Ticket size={32} /> TẠO GIFTCODE</h4>
+              <div className="space-y-5">
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic ml-2">Mã Code (In Hoa)</label>
+                    <input type="text" placeholder="VÍ DỤ: NEWYEAR2025" value={newGc.code} onChange={e => setNewGc({...newGc, code: e.target.value.toUpperCase()})} className="w-full bg-slate-900 border border-white/5 rounded-3xl px-7 py-5 text-white font-black italic tracking-widest outline-none focus:border-emerald-500 transition-all shadow-inner" />
+                 </div>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic ml-2">Số Điểm (P)</label>
+                       <input type="number" placeholder="10000" value={newGc.amount} onChange={e => setNewGc({...newGc, amount: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/5 rounded-3xl px-7 py-5 text-emerald-400 font-black italic outline-none focus:border-emerald-500 transition-all shadow-inner" />
+                    </div>
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic ml-2">Lượt dùng tối đa</label>
+                       <input type="number" placeholder="100" value={newGc.maxUses} onChange={e => setNewGc({...newGc, maxUses: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/5 rounded-3xl px-7 py-5 text-white font-black italic outline-none focus:border-emerald-500 transition-all shadow-inner" />
+                    </div>
+                 </div>
+                 <button onClick={handleCreateGiftcode} className="w-full py-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-3xl uppercase italic tracking-widest shadow-2xl shadow-emerald-600/30 transition-all active:scale-95 mt-4">PHÁT HÀNH GIFTCODE</button>
+              </div>
+           </div>
+        </div>
       )}
 
       {showAddAd && (
-        <div className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"><div className="glass-card w-full max-w-md p-10 rounded-[4rem] border border-white/10 relative"><button onClick={() => setShowAddAd(false)} className="absolute top-8 right-8 text-slate-500"><X /></button><h4 className="text-xl font-black text-white italic uppercase mb-8">THÊM QUẢNG CÁO</h4><div className="space-y-4"><input type="text" placeholder="TIÊU ĐỀ" value={newAd.title} onChange={e => setNewAd({...newAd, title: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold" /><input type="text" placeholder="URL ẢNH" value={newAd.imageUrl} onChange={e => setNewAd({...newAd, imageUrl: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold" /><input type="text" placeholder="LINK ĐÍCH" value={newAd.targetUrl} onChange={e => setNewAd({...newAd, targetUrl: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold" /><button onClick={() => { dbService.saveAd(newAd).then(() => { setShowAddAd(false); refreshData(); showToast('ADMIN', 'Đã thêm Ads!', 'success'); }); }} className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl uppercase italic shadow-lg">LƯU QUẢNG CÁO</button></div></div></div>
+        <div className="fixed inset-0 z-[400] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6">
+           <div className="glass-card w-full max-w-lg p-12 rounded-[4rem] border border-indigo-500/20 animate-in zoom-in-95 relative shadow-[0_0_100px_rgba(99,102,241,0.1)]">
+              <button onClick={() => setShowAddAd(false)} className="absolute top-8 right-8 text-slate-500 hover:text-white transition-colors"><X size={28} /></button>
+              <h4 className="text-3xl font-black text-white italic uppercase tracking-tighter mb-10 flex items-center gap-4 text-indigo-400"><ImageIcon size={32} /> THÊM QUẢNG CÁO</h4>
+              <div className="space-y-5">
+                 <input type="text" placeholder="TIÊU ĐỀ QUẢNG CÁO" value={newAd.title} onChange={e => setNewAd({...newAd, title: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-3xl px-7 py-5 text-white font-black italic outline-none focus:border-indigo-500 transition-all shadow-inner" />
+                 <input type="text" placeholder="LINK ẢNH (21:9)" value={newAd.imageUrl} onChange={e => setNewAd({...newAd, imageUrl: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-3xl px-7 py-5 text-white font-bold outline-none focus:border-indigo-500 transition-all shadow-inner" />
+                 <input type="text" placeholder="ĐỊA CHỈ ĐÍCH (URL)" value={newAd.targetUrl} onChange={e => setNewAd({...newAd, targetUrl: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-3xl px-7 py-5 text-indigo-400 font-bold outline-none focus:border-indigo-500 transition-all shadow-inner" />
+                 <button onClick={() => { dbService.saveAd(newAd).then(() => { setShowAddAd(false); refreshData(); showToast('ADMIN', 'Đã lưu Banner mới!', 'success'); }); }} className="w-full py-6 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-3xl uppercase italic tracking-widest shadow-2xl shadow-indigo-600/30 transition-all active:scale-95 mt-4">KÍCH HOẠT BANNER</button>
+              </div>
+           </div>
+        </div>
       )}
 
       {showAddAnn && (
-        <div className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"><div className="glass-card w-full max-w-md p-10 rounded-[4rem] border border-white/10 relative"><button onClick={() => setShowAddAnn(false)} className="absolute top-8 right-8 text-slate-500"><X /></button><h4 className="text-xl font-black text-white italic uppercase mb-8">ĐĂNG TIN MỚI</h4><div className="space-y-4"><input type="text" placeholder="TIÊU ĐỀ" value={newAnn.title} onChange={e => setNewAnn({...newAnn, title: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold" /><textarea placeholder="NỘI DUNG" value={newAnn.content} onChange={e => setNewAnn({...newAnn, content: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold" rows={3}></textarea><select value={newAnn.priority} onChange={e => setNewAnn({...newAnn, priority: e.target.value as any})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-black uppercase italic text-xs outline-none"><option value="low">ƯU TIÊN: THẤP</option><option value="high">ƯU TIÊN: KHẨN CẤP</option></select><button onClick={() => { dbService.saveAnnouncement(newAnn).then(() => { setShowAddAnn(false); refreshData(); showToast('ADMIN', 'Đã đăng tin!', 'success'); }); }} className="w-full py-5 bg-blue-600 text-white font-black rounded-2xl uppercase italic shadow-lg">GỬI THÔNG BÁO</button></div></div></div>
+        <div className="fixed inset-0 z-[400] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6">
+           <div className="glass-card w-full max-w-lg p-12 rounded-[4rem] border border-blue-500/20 animate-in zoom-in-95 relative shadow-[0_0_100px_rgba(59,130,246,0.1)]">
+              <button onClick={() => setShowAddAnn(false)} className="absolute top-8 right-8 text-slate-500 hover:text-white transition-colors"><X size={28} /></button>
+              <h4 className="text-3xl font-black text-white italic uppercase tracking-tighter mb-10 flex items-center gap-4 text-blue-400"><Megaphone size={32} /> ĐĂNG TIN MỚI</h4>
+              <div className="space-y-5">
+                 <input type="text" placeholder="TIÊU ĐỀ THÔNG BÁO" value={newAnn.title} onChange={e => setNewAnn({...newAnn, title: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-3xl px-7 py-5 text-white font-black italic outline-none focus:border-blue-500 transition-all shadow-inner" />
+                 <textarea placeholder="NỘI DUNG CHI TIẾT (NGẮN GỌN)" value={newAnn.content} onChange={e => setNewAnn({...newAnn, content: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-3xl px-7 py-5 text-white font-medium outline-none focus:border-blue-500 transition-all shadow-inner" rows={4} />
+                 <div className="flex gap-4">
+                    <button onClick={() => { setNewAnn({...newAnn, priority: 'low'}); }} className={`flex-1 py-4 rounded-2xl font-black italic text-[10px] uppercase border transition-all ${newAnn.priority === 'low' ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-900 text-slate-600 border-white/5'}`}>ƯU TIÊN: THƯỜNG</button>
+                    <button onClick={() => { setNewAnn({...newAnn, priority: 'high'}); }} className={`flex-1 py-4 rounded-2xl font-black italic text-[10px] uppercase border transition-all ${newAnn.priority === 'high' ? 'bg-red-600 text-white border-red-600 shadow-lg shadow-red-600/20' : 'bg-slate-900 text-slate-600 border-white/5'}`}>ƯU TIÊN: KHẨN CẤP</button>
+                 </div>
+                 <button onClick={() => { dbService.saveAnnouncement(newAnn).then(() => { setShowAddAnn(false); refreshData(); showToast('ADMIN', 'Thông báo đã được đăng!', 'success'); }); }} className="w-full py-6 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-3xl uppercase italic tracking-widest shadow-2xl shadow-blue-600/30 transition-all active:scale-95 mt-4">GỬI THÔNG BÁO TỚI TẤT CẢ</button>
+              </div>
+           </div>
+        </div>
       )}
     </div>
   );
