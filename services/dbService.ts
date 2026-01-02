@@ -221,6 +221,34 @@ export const dbService = {
     const { error } = await supabase.from('vip_requests').insert([req]);
     return { success: !error, message: error ? error.message : 'Gửi yêu cầu thành công, vui lòng chờ duyệt.' };
   },
+  
+  updateVipRequestStatus: async (requestId: string, status: 'completed' | 'refunded', userId?: string, vipTier?: string, amountVnd?: number) => {
+    // 1. Cập nhật trạng thái yêu cầu
+    const { error } = await supabase.from('vip_requests').update({ status }).eq('id', requestId);
+    if (error) return { success: false, message: error.message };
+
+    // 2. Nếu duyệt thành công, kích hoạt VIP cho hội viên
+    if (status === 'completed' && userId && vipTier && amountVnd) {
+      // Logic tính ngày: 20k=1 ngày, 100k=7 ngày, 500k=30 ngày
+      let days = 1;
+      if (amountVnd >= 500000) days = 30;
+      else if (amountVnd >= 100000) days = 7;
+      else if (amountVnd >= 20000) days = 1;
+
+      // Hạn dùng tính từ thời điểm duyệt
+      const until = new Date();
+      until.setDate(until.getDate() + days);
+
+      const { error: userError } = await supabase.from('users_data').update({
+        vip_tier: vipTier,
+        vip_until: until.toISOString()
+      }).eq('id', userId);
+
+      if (userError) return { success: false, message: 'Đã duyệt nhưng lỗi cập nhật VIP user.' };
+    }
+    
+    return { success: true };
+  },
 
   upgradeVipTiered: async (userId: string, amountVnd: number) => {
     const { data: u } = await supabase.from('users_data').select('balance, fullname').eq('id', userId).single();

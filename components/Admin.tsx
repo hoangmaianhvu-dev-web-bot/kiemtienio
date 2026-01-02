@@ -32,9 +32,10 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
     );
   }
 
-  const [tab, setTab] = useState<'users' | 'withdrawals' | 'ads' | 'giftcodes' | 'announcements'>('users');
+  const [tab, setTab] = useState<'users' | 'withdrawals' | 'payments' | 'ads' | 'giftcodes' | 'announcements'>('users');
   const [users, setUsers] = useState<User[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [vipRequests, setVipRequests] = useState<any[]>([]);
   const [ads, setAds] = useState<AdBanner[]>([]);
   const [giftcodes, setGiftcodes] = useState<Giftcode[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -53,15 +54,17 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
 
   const refreshData = async () => {
     try {
-      const [u, w, a, g, ann] = await Promise.all([
+      const [u, w, v, a, g, ann] = await Promise.all([
         dbService.getAllUsers(),
         dbService.getWithdrawals(),
+        dbService.getVipRequests(),
         dbService.getAds(true), 
         dbService.getGiftcodes(),
         dbService.getAnnouncements(true)
       ]);
       setUsers(u);
       setWithdrawals(w);
+      setVipRequests(v);
       setAds(a);
       setGiftcodes(g);
       setAnnouncements(ann);
@@ -105,23 +108,20 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
     if (u.id === user.id) return alert("Bạn không thể tự xóa chính mình!");
     if (u.email === 'adminavudev@gmail.com') return alert("Không thể xóa tài khoản Admin hệ thống!");
     
-    if (!confirm(`CẢNH BÁO NGUY HIỂM: Bạn có chắc chắn muốn xóa VĨNH VIỄN hội viên ${u.fullname}? Dữ liệu liên quan đến người dùng này sẽ biến mất hoàn toàn và không thể khôi phục!`)) return;
+    if (!confirm(`CẢNH BÁO NGUY HIỂM: Bạn có chắc chắn muốn xóa VĨNH VIỄN hội viên ${u.fullname}? Mọi dữ liệu điểm thưởng, lịch sử rút và VIP của họ sẽ biến mất hoàn toàn!`)) return;
     
     setIsActionLoading(true);
     const res = await dbService.deleteUser(u.id);
     
     if (res.success) {
-      // Cập nhật state local ngay lập tức để hội viên biến mất khỏi UI
-      setUsers(prev => prev.filter(userItem => userItem.id !== u.id));
+      setUsers(prev => prev.filter(item => item.id !== u.id));
       setActiveUserMenu(null);
-      
-      // Hiển thị Gold Modal sang trọng báo cáo thành công (Optimistic UI)
       showGoldSuccess(
-        "XÓA THÀNH CÔNG", 
-        `Toàn bộ dữ liệu của hội viên ${u.fullname} đã được loại bỏ vĩnh viễn khỏi máy chủ Diamond Nova.`
+        "XÓA HỘI VIÊN THÀNH CÔNG", 
+        `Hệ thống đã loại bỏ toàn bộ dữ liệu của ${u.fullname} khỏi máy chủ Diamond Nova vĩnh viễn.`
       );
     } else {
-      showToast('ADMIN', res.message, 'error');
+      showToast('LỖI HỆ THỐNG', res.message, 'error');
     }
     setIsActionLoading(false);
   };
@@ -130,6 +130,21 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
     await dbService.updateWithdrawalStatus(id, s);
     showToast('ADMIN', `Đơn rút ${s.toUpperCase()}`, 'info');
     await refreshData();
+  };
+  
+  const handleVipAction = async (req: any, status: 'completed' | 'refunded') => {
+    if (!confirm(`Xác nhận ${status === 'completed' ? 'DUYỆT' : 'HỦY'} yêu cầu này?`)) return;
+    
+    setIsActionLoading(true);
+    const res = await dbService.updateVipRequestStatus(req.id, status, req.user_id, req.vip_tier, req.amount_vnd);
+    setIsActionLoading(false);
+    
+    if (res.success) {
+      showToast('ADMIN', `Đã cập nhật đơn ${status === 'completed' ? 'DUYỆT THÀNH CÔNG' : 'ĐÃ HOÀN/HỦY'}`, 'success');
+      await refreshData();
+    } else {
+      showToast('LỖI', res.message || 'Có lỗi xảy ra', 'error');
+    }
   };
 
   const handleCreateGiftcode = async () => {
@@ -183,9 +198,9 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
       </div>
 
       <div className="flex flex-wrap gap-3">
-        {['users', 'withdrawals', 'ads', 'giftcodes', 'announcements'].map(t => (
+        {['users', 'withdrawals', 'payments', 'ads', 'giftcodes', 'announcements'].map(t => (
           <button key={t} onClick={() => setTab(t as any)} className={`px-8 py-4 rounded-2xl font-black text-[11px] uppercase italic tracking-widest transition-all ${tab === t ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/20' : 'bg-slate-900 text-slate-500 hover:bg-slate-800'}`}>
-            {t === 'users' ? 'Quản lý Hội viên' : t === 'withdrawals' ? 'Duyệt Rút tiền' : t === 'ads' ? 'Ads Banner' : t === 'giftcodes' ? 'Mã Quà Tặng' : 'Tin Hệ Thống'}
+            {t === 'users' ? 'Quản lý Hội viên' : t === 'withdrawals' ? 'Duyệt Rút tiền' : t === 'payments' ? 'Thanh toán' : t === 'ads' ? 'Ads Banner' : t === 'giftcodes' ? 'Mã Quà Tặng' : 'Tin Hệ Thống'}
           </button>
         ))}
       </div>
@@ -260,6 +275,59 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+        
+        {tab === 'payments' && (
+          <div className="space-y-8">
+            <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter" style={{ color: '#e2b13c' }}>QUẢN LÝ THANH TOÁN (NẠP VIP)</h3>
+            
+            {/* Nova Card Style Container */}
+            <div className="bg-[#141821]/95 border border-[#e2b13c]/20 rounded-2xl p-6 shadow-xl">
+               <div className="overflow-x-auto">
+                 <table className="w-full text-left border-collapse">
+                   <thead>
+                      <tr className="text-sm font-black uppercase tracking-widest border-b-2 border-[#e2b13c]" style={{ color: '#e2b13c' }}>
+                        <th className="px-4 py-4">Mã Đơn</th>
+                        <th className="px-4 py-4">Hội Viên</th>
+                        <th className="px-4 py-4">Số Tiền</th>
+                        <th className="px-4 py-4 text-center">Tình Trạng</th>
+                        <th className="px-4 py-4 text-right">Hành Động</th>
+                      </tr>
+                   </thead>
+                   <tbody className="text-sm text-white divide-y divide-white/5">
+                     {vipRequests.map(req => (
+                       <tr key={req.id} className="hover:bg-white/[0.05] transition-all">
+                         <td className="px-4 py-5 font-bold">#VIP-{req.id.slice(0, 6).toUpperCase()}</td>
+                         <td className="px-4 py-5">
+                            <div className="font-bold uppercase">{req.user_name}</div>
+                            <div className="text-[10px] text-slate-500 mt-1 italic">{req.email}</div>
+                         </td>
+                         <td className="px-4 py-5 font-black text-[#2ecc71]">+ {req.amount_vnd?.toLocaleString()}đ</td>
+                         <td className="px-4 py-5 text-center">
+                            <span className={`px-3 py-1 rounded-md text-[10px] font-black uppercase italic ${req.status === 'pending' ? 'bg-[#f1c40f]/20 text-[#f1c40f]' : req.status === 'completed' ? 'bg-[#2ecc71]/20 text-[#2ecc71]' : 'bg-[#ff4d4d]/20 text-[#ff4d4d]'}`}>
+                               {req.status === 'pending' ? 'CHỜ XỬ LÝ' : req.status === 'completed' ? 'THÀNH CÔNG' : 'ĐÃ HOÀN/HỦY'}
+                            </span>
+                         </td>
+                         <td className="px-4 py-5 text-right">
+                            {req.status === 'pending' ? (
+                              <div className="flex justify-end gap-2">
+                                 <button onClick={() => handleVipAction(req, 'completed')} className="px-3 py-1.5 rounded-lg bg-[#2ecc71] text-white font-bold text-xs hover:scale-105 hover:brightness-110 transition-all shadow-lg">Duyệt</button>
+                                 <button onClick={() => handleVipAction(req, 'refunded')} className="px-3 py-1.5 rounded-lg bg-[#ff4d4d] text-white font-bold text-xs hover:scale-105 hover:brightness-110 transition-all shadow-lg">Hoàn</button>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-slate-500 font-bold italic">Đã xử lý</span>
+                            )}
+                         </td>
+                       </tr>
+                     ))}
+                     {vipRequests.length === 0 && (
+                       <tr><td colSpan={5} className="py-8 text-center text-slate-500 italic">Không có yêu cầu nào.</td></tr>
+                     )}
+                   </tbody>
+                 </table>
+               </div>
             </div>
           </div>
         )}
@@ -378,7 +446,7 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
         <div className="fixed inset-0 z-[400] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6">
            <div className="glass-card w-full max-w-lg p-12 rounded-[4rem] border border-indigo-500/20 animate-in zoom-in-95 relative shadow-[0_0_100px_rgba(99,102,241,0.1)]">
               <button onClick={() => setShowAddAd(false)} className="absolute top-8 right-8 text-slate-500 hover:text-white transition-colors"><X size={28} /></button>
-              <h4 className="text-3xl font-black text-white italic uppercase tracking-tighter mb-10 flex items-center gap-4 text-indigo-400"><ImageIcon size={32} /> THÊM QUẢNG CÁO</h4>
+              <h4 className="text-3xl font-black text-white italic uppercase tracking-tighter mb-10 flex items-center gap-4 text-indigo-400"><ImageIcon size={32} /> THÊM BANNER</h4>
               <div className="space-y-5">
                  <input type="text" placeholder="TIÊU ĐỀ QUẢNG CÁO" value={newAd.title} onChange={e => setNewAd({...newAd, title: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-3xl px-7 py-5 text-white font-black italic outline-none focus:border-indigo-500 transition-all shadow-inner" />
                  <input type="text" placeholder="LINK ẢNH (21:9)" value={newAd.imageUrl} onChange={e => setNewAd({...newAd, imageUrl: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-3xl px-7 py-5 text-white font-bold outline-none focus:border-indigo-500 transition-all shadow-inner" />
