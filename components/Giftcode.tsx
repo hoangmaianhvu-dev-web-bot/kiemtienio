@@ -21,12 +21,13 @@ const Giftcode: React.FC<Props> = ({ user, onUpdateUser }) => {
   const [msg, setMsg] = useState('');
 
   const handleClaim = async () => {
-    if (!code.trim() || status === 'loading') return;
+    const cleanCode = code.trim().toUpperCase().replace(/\s+/g, '');
+    if (!cleanCode || status === 'loading') return;
     setStatus('loading');
     
     try {
       // Chuyển toàn bộ việc kiểm tra và cộng điểm vào dbService (Server-side check)
-      const res = await dbService.claimGiftcode(user.id, code.trim());
+      const res = await dbService.claimGiftcode(user.id, cleanCode);
 
       if (res.success) {
         // Cập nhật state User cục bộ sau khi DB đã cộng điểm thành công
@@ -52,6 +53,12 @@ const Giftcode: React.FC<Props> = ({ user, onUpdateUser }) => {
     }
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Tự động chuẩn hóa code ngay khi nhập: viết hoa và xóa mọi khoảng trắng
+    const val = e.target.value.toUpperCase().replace(/\s+/g, '');
+    setCode(val);
+  };
+
   return (
     <div className="max-w-2xl mx-auto py-10 animate-in fade-in duration-500">
       <div className="glass-card rounded-[2.5rem] p-10 relative overflow-hidden">
@@ -72,7 +79,7 @@ const Giftcode: React.FC<Props> = ({ user, onUpdateUser }) => {
             <input 
               type="text" 
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={handleInputChange}
               placeholder="VÍ DỤ: NOVA2025"
               className={`w-full bg-slate-900 border-2 ${status === 'error' ? 'border-red-500/50' : 'border-slate-800'} rounded-[1.5rem] px-8 py-6 text-white text-2xl font-black tracking-[0.2em] text-center focus:outline-none focus:ring-4 focus:ring-rose-500/20 transition-all uppercase`}
             />

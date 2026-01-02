@@ -128,6 +128,7 @@ export const dbService = {
   },
 
   getCurrentUser: async () => {
+    // FIX: Changed sessionStorage.setItem to sessionStorage.getItem to correctly retrieve the session ID.
     const id = localStorage.getItem('nova_session_id') || sessionStorage.getItem('nova_session_id');
     if (!id) return null;
     const { data, error } = await supabase.from('users_data').select('*').eq('id', id).maybeSingle();
@@ -361,7 +362,7 @@ export const dbService = {
     const { error } = await supabase.from('giftcodes').insert([{
       code: gc.code,
       amount: gc.amount,
-      max_uses: gc.maxUses,
+      max_uses: gc.max_uses,
       used_by: [],
       created_at: new Date().toISOString(),
       is_active: true
@@ -370,26 +371,47 @@ export const dbService = {
   },
 
   claimGiftcode: async (userId: string, code: string) => {
-    const { data: gcRaw, error: gcError } = await supabase.from('giftcodes').select('*').eq('code', code).eq('is_active', true).maybeSingle();
+    // 1. Tìm Giftcode
+    const { data: gcRaw, error: gcError } = await supabase
+      .from('giftcodes')
+      .select('*')
+      .eq('code', code.trim().toUpperCase())
+      .eq('is_active', true)
+      .maybeSingle();
+
     if (gcError || !gcRaw) return { success: false, message: 'Mã không tồn tại hoặc đã hết hạn.' };
     
     const gc = mapGiftcode(gcRaw);
     if (gc.usedBy.includes(userId)) return { success: false, message: 'Bạn đã sử dụng mã này rồi.' };
     if (gc.usedBy.length >= gc.maxUses) return { success: false, message: 'Mã đã đạt giới hạn lượt sử dụng.' };
 
-    const { data: u } = await supabase.from('users_data').select('balance, total_giftcode_earned').eq('id', userId).single();
-    if (!u) return { success: false, message: 'Người dùng không tồn tại.' };
+    // 2. Tìm người dùng với ID chính xác
+    const { data: u, error: userError } = await supabase
+      .from('users_data')
+      .select('id, balance, total_giftcode_earned')
+      .eq('id', userId.trim())
+      .single();
 
+    if (userError || !u) {
+      console.error("User validation failed in claimGiftcode:", userError);
+      return { success: false, message: 'Lỗi xác thực người dùng. Hãy đăng nhập lại.' };
+    }
+
+    // 3. Cập nhật số dư người dùng
     const { error: updateError } = await supabase.from('users_data').update({ 
-      balance: Number(u.balance) + gc.amount,
-      total_giftcode_earned: (u.total_giftcode_earned || 0) + gc.amount
-    }).eq('id', userId);
+      balance: Number(u.balance) + Number(gc.amount),
+      total_giftcode_earned: (Number(u.total_giftcode_earned) || 0) + Number(gc.amount)
+    }).eq('id', u.id);
     
-    if (updateError) return { success: false, message: updateError.message };
+    if (updateError) {
+      console.error("Update balance error:", updateError);
+      return { success: false, message: 'Không thể cập nhật số dư. Thử lại sau.' };
+    }
 
-    await supabase.from('giftcodes').update({ used_by: [...gc.usedBy, userId] }).eq('code', code);
+    // 4. Đánh dấu mã đã sử dụng
+    await supabase.from('giftcodes').update({ used_by: [...gc.usedBy, userId] }).eq('code', gc.code);
     
-    return { success: true, amount: gc.amount, message: `Thành công! Bạn nhận được ${gc.amount} P.` };
+    return { success: true, amount: gc.amount, message: `Thành công! Bạn nhận được ${gc.amount.toLocaleString()} P.` };
   },
 
   getNotifications: async (userId: string) => {

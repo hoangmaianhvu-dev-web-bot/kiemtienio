@@ -1,11 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { AppView, User, VipTier } from './types.ts';
 import { dbService, supabase } from './services/dbService.ts';
 import { NAV_ITEMS, formatK, SOCIAL_LINKS } from './constants.tsx';
 import { 
   Menu, LogOut, Sparkles, Bot, WifiOff, Bell, Activity, X, Star, Sun, Moon, 
-  Crown, MessageCircle, Youtube, Send, MessageSquare, Plus
+  Crown, MessageCircle, Youtube, Send, MessageSquare, Plus, AlertTriangle, Clock
 } from 'lucide-react';
 
 // Components
@@ -98,6 +98,21 @@ const App: React.FC = () => {
     setUser(updated); 
     await dbService.updateUser(updated.id, updated); 
   };
+
+  // VIP Expiration Logic
+  const vipExpiringSoon = useMemo(() => {
+    if (!user?.isVip || !user?.vipUntil) return null;
+    const until = new Date(user.vipUntil).getTime();
+    const now = new Date().getTime();
+    const diff = until - now;
+    // Notify if less than 24 hours (86,400,000 ms)
+    if (diff > 0 && diff < 86400000) {
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      return { hours, mins };
+    }
+    return null;
+  }, [user?.isVip, user?.vipUntil]);
 
   if (isLoading) {
     return (
@@ -217,24 +232,37 @@ const App: React.FC = () => {
       </aside>
 
       <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 relative">
-        <header className="flex items-center justify-between gap-6 mb-10 glass-card p-4 rounded-3xl border border-white/5">
-           <div className="flex items-center gap-4 md:hidden">
-              <button onClick={() => setIsSidebarOpen(true)} className="p-3 bg-slate-900 rounded-xl text-white"><Menu className="w-6 h-6" /></button>
-              <Sparkles className="w-7 h-7 text-blue-500" />
-           </div>
-           <div className="flex-1 max-w-xl mx-auto md:mx-0"><GlobalSearch onNavigate={setCurrentView} isAdmin={user?.isAdmin || false} /></div>
-           <div className="flex items-center gap-3 md:gap-6 px-2 md:px-4">
-              <button onClick={toggleTheme} className="p-3 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-all text-slate-400 hover:text-blue-400 group">
-                {theme === 'dark' ? <Sun size={20} className="group-hover:rotate-45 transition-transform" /> : <Moon size={20} className="group-hover:-rotate-12 transition-transform" />}
-              </button>
-              <div className="hidden lg:flex flex-col items-end">
-                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">Số dư</span>
-                 <div className="flex items-center gap-2"><Star className={`w-3 h-3 animate-pulse ${user.isVip ? 'text-amber-400' : 'text-emerald-500'}`} /><span className={`text-lg font-black italic tracking-tighter ${user.isVip ? 'text-amber-400' : 'text-emerald-500'}`}>{formatK(user.balance)} P</span></div>
+        <header className="flex flex-col gap-4 mb-10">
+           {/* VIP Expiration Alert Banner */}
+           {vipExpiringSoon && (
+             <div className="w-full bg-amber-500/10 border border-amber-500/30 p-4 rounded-2xl flex items-center justify-between animate-pulse shadow-lg shadow-amber-500/5">
+                <div className="flex items-center gap-3">
+                   <AlertTriangle className="text-amber-500 w-5 h-5" />
+                   <p className="text-[11px] font-black text-amber-500 uppercase italic">Cảnh báo: Gói VIP của bạn sẽ hết hạn trong {vipExpiringSoon.hours} giờ {vipExpiringSoon.mins} phút!</p>
+                </div>
+                <button onClick={() => setCurrentView(AppView.VIP)} className="bg-amber-500 text-black px-4 py-1.5 rounded-lg text-[9px] font-black uppercase italic hover:bg-amber-400 transition-all shadow-lg shadow-amber-500/20">Gia hạn ngay</button>
+             </div>
+           )}
+
+           <div className="flex items-center justify-between gap-6 glass-card p-4 rounded-3xl border border-white/5 w-full">
+              <div className="flex items-center gap-4 md:hidden">
+                  <button onClick={() => setIsSidebarOpen(true)} className="p-3 bg-slate-900 rounded-xl text-white"><Menu className="w-6 h-6" /></button>
+                  <Sparkles className="w-7 h-7 text-blue-500" />
               </div>
-              <button onClick={() => setCurrentView(AppView.NOTIFICATIONS)} className="relative p-3 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-all">
-                 <Bell size={20} className="text-slate-400" />
-                 {hasNewNotif && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>}
-              </button>
+              <div className="flex-1 max-w-xl mx-auto md:mx-0"><GlobalSearch onNavigate={setCurrentView} isAdmin={user?.isAdmin || false} /></div>
+              <div className="flex items-center gap-3 md:gap-6 px-2 md:px-4">
+                  <button onClick={toggleTheme} className="p-3 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-all text-slate-400 hover:text-blue-400 group">
+                    {theme === 'dark' ? <Sun size={20} className="group-hover:rotate-45 transition-transform" /> : <Moon size={20} className="group-hover:-rotate-12 transition-transform" />}
+                  </button>
+                  <div className="hidden lg:flex flex-col items-end">
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">Số dư</span>
+                    <div className="flex items-center gap-2"><Star className={`w-3 h-3 animate-pulse ${user.isVip ? 'text-amber-400' : 'text-emerald-500'}`} /><span className={`text-lg font-black italic tracking-tighter ${user.isVip ? 'text-amber-400' : 'text-emerald-500'}`}>{formatK(user.balance)} P</span></div>
+                  </div>
+                  <button onClick={() => setCurrentView(AppView.NOTIFICATIONS)} className="relative p-3 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-all">
+                    <Bell size={20} className="text-slate-400" />
+                    {hasNewNotif && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>}
+                  </button>
+              </div>
            </div>
         </header>
         <div className="max-w-6xl mx-auto">{renderView()}</div>
