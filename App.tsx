@@ -54,6 +54,7 @@ const App: React.FC = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
+    // Real-time synchronization
     const userChannel = supabase.channel('user-changes')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users_data' }, (payload) => {
         if (user && payload.new.id === user.id) loadSession();
@@ -67,6 +68,7 @@ const App: React.FC = () => {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
         if (user && (payload.new.user_id === user.id || payload.new.user_id === 'all')) {
           setHasNewNotif(true);
+          // Auto clear notification badge after a while
           setTimeout(() => setHasNewNotif(false), 8000);
         }
       })
