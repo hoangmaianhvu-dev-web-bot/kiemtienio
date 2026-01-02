@@ -86,7 +86,6 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
     setActiveTask(taskData);
     
     await dbService.logActivity(user.id, user.fullname, 'Bắt đầu nhiệm vụ', gate.name);
-    // Vẫn giữ nguyên logic mở link sang tab mới
     await openTaskLink(id, user.id, token);
     setGeneratingGate(null);
   };
@@ -98,12 +97,22 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
     setTimeout(async () => {
       const input = inputToken.trim().toUpperCase();
       if (input === activeTask.token || input === activeTask.token.replace('NOVA-', '')) {
+        // Thực hiện cộng điểm bảo mật qua RPC
+        const { error } = await dbService.addPointsSecurely(user.id);
+        
+        if (error) {
+           console.error("Secure Add Points Failed:", error);
+           setStatus('error');
+           return;
+        }
+
         const newTaskCounts = { ...user.taskCounts };
         newTaskCounts[activeTask.gateName] = (newTaskCounts[activeTask.gateName] || 0) + 1;
 
+        // Cập nhật các thông tin không nhạy cảm khác (counts, dates)
         const updatedUser = {
           ...user,
-          balance: user.balance + activeTask.points,
+          balance: user.balance + activeTask.points, // Cập nhật local để UI mượt, DB đã được RPC xử lý
           totalEarned: (user.totalEarned || 0) + activeTask.points,
           tasksToday: (user.tasksToday || 0) + 1,
           taskCounts: newTaskCounts,
@@ -139,7 +148,6 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-1000 pb-24 px-2">
-      {/* AUTHENTICATION TERMINAL */}
       <div className="relative pt-4 max-w-2xl mx-auto">
         <div className="glass-card p-6 md:p-10 rounded-[2.5rem] border border-cyan-500/20 bg-gradient-to-b from-blue-900/20 to-black/95 backdrop-blur-3xl shadow-2xl overflow-hidden text-center relative">
              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent"></div>
@@ -187,19 +195,13 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
                 )}
                 {status === 'error' && (
                   <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl flex items-center justify-center gap-2 text-red-400 font-black uppercase italic text-[10px] tracking-wider">
-                    <ShieldAlert className="w-4 h-4" /> MÃ KHÔNG CHÍNH XÁC, VUI LÒNG KIỂM TRA LẠI!
+                    <ShieldAlert className="w-4 h-4" /> LỖI XÁC THỰC HOẶC MÃ SAI!
                   </div>
-                )}
-                {!activeTask && (
-                   <div className="flex items-center justify-center gap-2 text-slate-600 text-[9px] font-black uppercase tracking-widest italic">
-                      <MousePointer2 className="w-3 h-3" /> CLICK "MỞ LINK" Ở CÁC CỔNG DƯỚI ĐỂ BẮT ĐẦU
-                   </div>
                 )}
              </div>
         </div>
       </div>
 
-      {/* GATE GRID */}
       <div className="space-y-8 pt-8">
         <div className="flex flex-col md:flex-row items-center gap-6 justify-between">
            <div className="flex items-center gap-5">

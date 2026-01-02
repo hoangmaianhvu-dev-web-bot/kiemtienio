@@ -1,7 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { User, Giftcode, WithdrawalRequest, AdminNotification, Announcement, AdBanner, ActivityLog } from '../types.ts';
-import { REFERRAL_REWARD } from '../constants.tsx';
+import { REFERRAL_REWARD, SECURE_AUTH_KEY } from '../constants.tsx';
 
 const supabaseUrl = (window as any).process?.env?.SUPABASE_URL || '';
 const supabaseKey = (window as any).process?.env?.SUPABASE_ANON_KEY || '';
@@ -61,8 +61,9 @@ export const dbService = {
       if (refId) {
         const { data: refUser } = await supabase.from('users_data').select('*').eq('id', refId).maybeSingle();
         if (refUser) {
+          // Khi đăng ký giới thiệu, cũng nên dùng RPC nếu RLS đã bật
+          await supabase.rpc('secure_add_points', { target_id: refId, auth_key: SECURE_AUTH_KEY });
           await supabase.from('users_data').update({
-            balance: Number(refUser.balance || 0) + REFERRAL_REWARD,
             referral_count: Number(refUser.referral_count || 0) + 1
           }).eq('id', refId);
         }
@@ -94,16 +95,23 @@ export const dbService = {
 
   updateUser: async (id: string, updates: any) => {
     const dbUpdates: any = {};
-    if (updates.balance !== undefined) dbUpdates.balance = updates.balance;
     if (updates.isBanned !== undefined) dbUpdates.is_banned = updates.isBanned;
     if (updates.taskCounts !== undefined) dbUpdates.task_counts = updates.taskCounts;
     if (updates.tasksToday !== undefined) dbUpdates.tasks_today = updates.tasksToday;
     if (updates.tasksWeek !== undefined) dbUpdates.tasks_week = updates.tasksWeek;
-    if (updates.totalEarned !== undefined) dbUpdates.total_earned = updates.totalEarned;
     if (updates.lastTaskDate !== undefined) dbUpdates.last_task_date = updates.lastTaskDate;
     if (updates.bankInfo !== undefined) dbUpdates.bank_info = updates.bankInfo;
     if (updates.idGame !== undefined) dbUpdates.id_game = updates.idGame;
     return await supabase.from('users_data').update(dbUpdates).eq('id', id);
+  },
+
+  // Phương thức bảo mật mới để cộng điểm qua RPC
+  addPointsSecurely: async (id: string) => {
+    const { error } = await supabase.rpc('secure_add_points', { 
+      target_id: id, 
+      auth_key: SECURE_AUTH_KEY 
+    });
+    return { error };
   },
 
   requestResetCode: async (email: string, telegramUsername: string) => {
@@ -112,7 +120,6 @@ export const dbService = {
       if (error || !data) return { success: false, message: 'Email không tồn tại.' };
       
       const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-      // Lưu reset_code vào database để Bot có thể đọc được sau này
       await supabase.from('users_data').update({ reset_code: resetCode }).eq('email', email);
       
       await dbService.logActivity(data.id, email, 'Yêu cầu Reset mật khẩu', `Username: ${telegramUsername}`);

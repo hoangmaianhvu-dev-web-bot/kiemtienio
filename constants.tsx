@@ -25,6 +25,9 @@ export const POINT_PER_DIAMOND = 2000;
 export const REFERRAL_REWARD = 5000;
 export const DAILY_TASK_LIMIT = 20;
 
+// Khóa bảo mật để gọi RPC (Phải khớp với mã trong SQL của bạn)
+export const SECURE_AUTH_KEY = "MA_BAO_MAT_CUA_ADMIN";
+
 export const WITHDRAW_MILESTONES = [5000, 10000, 20000, 50000, 100000, 200000, 500000];
 export const BLOG_DESTINATION = "https://avudev-verifi.blogspot.com/";
 
@@ -38,7 +41,6 @@ export const SOCIAL_LINKS = {
 
 /**
  * Danh sách 6 cổng nhiệm vụ chính thức
- * Mức thưởng: 1320 P (các cổng 1,2,4,5,6) và 1050 P (cổng 3)
  */
 export const TASK_RATES: Record<number, { name: string, reward: number, limit: number, apiKey: string }> = {
   1: { name: "LINK4M", reward: 1320, limit: 2, apiKey: "68208afab6b8fc60542289b6" },
