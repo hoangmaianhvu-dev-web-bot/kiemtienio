@@ -8,7 +8,7 @@ import {
   ShoppingBag, Ticket, History, Activity, Database, Copy, CheckCircle2, X, 
   PlusCircle, Gamepad2, Building2, AlertTriangle, Loader2, Eye, EyeOff,
   Hash, ShieldAlert, TrendingUp, SearchIcon, Terminal, Image as ImageIcon,
-  PlusSquare, BellRing, Shield
+  PlusSquare, BellRing, Shield, MinusCircle, Wallet
 } from 'lucide-react';
 
 interface Props {
@@ -36,6 +36,10 @@ export default function Admin({ user, onUpdateUser }: Props) {
   const [newAd, setNewAd] = useState({ title: '', imageUrl: '', targetUrl: '' });
   const [newAnn, setNewAnn] = useState({ title: '', content: '', priority: 'low' as 'low' | 'high' });
   const [newGc, setNewGc] = useState({ code: '', amount: 10000, maxUses: 100 });
+  
+  // State cho chỉnh sửa số dư
+  const [editBalanceUser, setEditBalanceUser] = useState<User | null>(null);
+  const [balanceAdjustAmount, setBalanceAdjustAmount] = useState<number>(0);
 
   const refreshData = async () => {
     setIsSyncing(true);
@@ -94,6 +98,24 @@ export default function Admin({ user, onUpdateUser }: Props) {
     const reason = u.isBanned ? '' : 'Vi phạm quy định hệ thống';
     if (!window.confirm(u.isBanned ? `Mở khóa tài khoản ${u.fullname}?` : `Khóa tài khoản ${u.fullname}?`)) return;
     await dbService.updateUser(u.id, { isBanned: !u.isBanned, banReason: reason });
+    refreshData();
+  };
+
+  const handleAdjustBalance = async (isDeduct: boolean) => {
+    if (!editBalanceUser || balanceAdjustAmount <= 0) return;
+    
+    const amount = isDeduct ? -balanceAdjustAmount : balanceAdjustAmount;
+    const newBalance = (Number(editBalanceUser.balance) || 0) + amount;
+    
+    if (newBalance < 0) return alert("Số dư không thể âm!");
+
+    if (!window.confirm(`${isDeduct ? 'Trừ' : 'Cộng'} ${balanceAdjustAmount.toLocaleString()} P cho ${editBalanceUser.fullname}?`)) return;
+
+    await dbService.updateUser(editBalanceUser.id, { balance: newBalance });
+    await dbService.logActivity(user.id, user.fullname, 'ADJUST_BALANCE', `${isDeduct ? 'Trừ' : 'Cộng'} ${balanceAdjustAmount} P của ${editBalanceUser.fullname} (#${editBalanceUser.id})`);
+    
+    setEditBalanceUser(null);
+    setBalanceAdjustAmount(0);
     refreshData();
   };
 
@@ -242,7 +264,16 @@ ALTER TABLE public.users_data ADD COLUMN IF NOT EXISTS last_task_date TIMESTAMP 
                         </td>
                         <td className="px-6 py-6 font-black text-emerald-500 italic">{Number(u.balance).toLocaleString()} P</td>
                         <td className="px-6 py-6"><span className={`px-3 py-1 text-[8px] font-black rounded-full border ${u.isBanned ? 'bg-red-600/10 text-red-500 border-red-500/20' : 'bg-emerald-600/10 text-emerald-500 border-emerald-500/20'}`}>{u.isBanned ? 'BỊ KHÓA' : 'HOẠT ĐỘNG'}</span></td>
-                        <td className="px-6 py-6 text-right"><button onClick={() => handleToggleBan(u)} className={`p-3 rounded-xl transition-all ${u.isBanned ? 'bg-emerald-600/10 text-emerald-400' : 'bg-red-600/10 text-red-500'}`}>{u.isBanned ? <Unlock size={18} /> : <Ban size={18} />}</button></td>
+                        <td className="px-6 py-6 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => setEditBalanceUser(u)} className="p-3 bg-blue-600/10 text-blue-400 rounded-xl hover:bg-blue-600 hover:text-white transition-all" title="Chỉnh sửa số dư">
+                              <Wallet size={18} />
+                            </button>
+                            <button onClick={() => handleToggleBan(u)} className={`p-3 rounded-xl transition-all ${u.isBanned ? 'bg-emerald-600/10 text-emerald-400' : 'bg-red-600/10 text-red-500'}`} title={u.isBanned ? 'Mở khóa' : 'Khóa'}>
+                              {u.isBanned ? <Unlock size={18} /> : <Ban size={18} />}
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -396,6 +427,43 @@ ALTER TABLE public.users_data ADD COLUMN IF NOT EXISTS last_task_date TIMESTAMP 
            </div>
         )}
       </div>
+
+      {/* Modal chỉnh sửa số dư */}
+      {editBalanceUser && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-6 animate-in fade-in">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setEditBalanceUser(null)}></div>
+          <div className="glass-card w-full max-w-sm p-10 rounded-[3rem] border border-white/10 relative z-10 space-y-8">
+            <div className="text-center">
+              <h2 className="text-2xl font-black text-white italic uppercase mb-2">ĐIỀU CHỈNH SỐ DƯ</h2>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{editBalanceUser.fullname} (#{editBalanceUser.id})</p>
+              <p className="text-sm font-black text-emerald-500 mt-2 italic">Hiện tại: {Number(editBalanceUser.balance).toLocaleString()} P</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="relative group">
+                 <input 
+                  type="number" 
+                  value={balanceAdjustAmount} 
+                  onChange={e => setBalanceAdjustAmount(Math.max(0, parseInt(e.target.value) || 0))} 
+                  placeholder="NHẬP SỐ ĐIỂM (P)..." 
+                  className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-5 text-white font-black text-center outline-none focus:border-blue-500"
+                 />
+              </div>
+              
+              <div className="flex gap-4">
+                <button onClick={() => handleAdjustBalance(false)} className="flex-1 py-4 bg-emerald-600 text-white font-black rounded-2xl italic uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
+                  <PlusCircle size={16} /> CỘNG ĐIỂM
+                </button>
+                <button onClick={() => handleAdjustBalance(true)} className="flex-1 py-4 bg-red-600/10 border border-red-500/20 text-red-500 font-black rounded-2xl italic uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
+                  <MinusCircle size={16} /> TRỪ ĐIỂM
+                </button>
+              </div>
+            </div>
+            
+            <button onClick={() => setEditBalanceUser(null)} className="w-full text-slate-600 font-black uppercase text-[10px] italic">HỦY BỎ</button>
+          </div>
+        </div>
+      )}
 
       {/* Modals cho việc thêm mới */}
       {showAddModal && (

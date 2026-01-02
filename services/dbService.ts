@@ -54,13 +54,13 @@ export const dbService = {
     const pointsFromGiftcodes = Number(u.total_giftcode_earned || 0);
     const pointsFromRefs = Number(u.referral_count || 0) * REFERRAL_REWARD;
 
-    // Tổng số điểm hợp lệ mà người dùng từng có
+    // Tổng số điểm hợp lệ mà người dùng từng có (Nhiệm vụ + Giftcode + Mời bạn)
     const expectedTotal = pointsFromTasks + pointsFromGiftcodes + pointsFromRefs;
-    // Tổng số điểm thực tế (số dư hiện tại + số đã rút)
+    // Tổng số điểm thực tế (Số dư + Số đã/đang rút)
     const actualTotal = Number(u.balance || 0) + totalWithdrawnPoints;
 
-    // Tăng biên độ sai số lên 500 P để tránh các lỗi tích lũy nhỏ gây ban nhầm
-    if (actualTotal > expectedTotal + 500) {
+    // Tăng biên độ sai số lên 1000 P để tuyệt đối tránh ban nhầm do độ trễ đồng bộ
+    if (actualTotal > expectedTotal + 1000) {
       return { 
         isValid: false, 
         reason: `Mất cân đối: Thực tế (${actualTotal}) > Hợp lệ (${expectedTotal}). Chênh lệch: ${actualTotal - expectedTotal} P`,
@@ -150,7 +150,7 @@ export const dbService = {
     if (updates.balance !== undefined) dbUpdates.balance = updates.balance;
     if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
     
-    // BỔ SUNG: Cập nhật các trường Audit quan trọng
+    // Đảm bảo đồng bộ các trường Audit
     if (updates.totalEarned !== undefined) dbUpdates.total_earned = updates.totalEarned;
     if (updates.totalGiftcodeEarned !== undefined) dbUpdates.total_giftcode_earned = updates.totalGiftcodeEarned;
     if (updates.referralCount !== undefined) dbUpdates.referral_count = updates.referralCount;
@@ -221,6 +221,7 @@ export const dbService = {
   },
 
   addWithdrawal: async (req: any) => {
+    // Chạy audit trước khi cho phép tạo lệnh rút
     const audit = await dbService.auditUserIntegrity(req.userId);
     if (!audit.isValid) {
       await dbService.autoBanUser(req.userId, `Audit-Failure: ${audit.reason}`);
