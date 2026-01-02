@@ -124,8 +124,18 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast 
 
   const handleCreateGiftcode = async () => {
     if (!newGc.code || !newGc.amount) return alert("Nhập đủ thông tin.");
-    const res = await dbService.addGiftcode({ ...newGc, max_uses: newGc.maxUses });
-    if (!res.error) { showToast('ADMIN', "Đã tạo Giftcode!", 'success'); setShowAddGc(false); refreshData(); }
+    setIsActionLoading(true);
+    const res = await dbService.addGiftcode(newGc.code, newGc.amount, newGc.maxUses);
+    setIsActionLoading(false);
+    
+    if (!res.error) { 
+      showToast('ADMIN', "Đã tạo Giftcode thành công!", 'success'); 
+      setShowAddGc(false); 
+      setNewGc({ code: '', amount: 10000, maxUses: 100 });
+      refreshData(); 
+    } else {
+      alert("Lỗi tạo Giftcode: " + (res.error as any).message);
+    }
   };
 
   return (
@@ -262,7 +272,7 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast 
                       <td className="px-6 py-8 font-black text-rose-500 tracking-[0.3em] uppercase text-sm italic">{g.code}</td>
                       <td className="px-6 py-8 font-black text-emerald-500 text-base">{g.amount.toLocaleString()} P</td>
                       <td className="px-6 py-8 text-slate-500 font-black italic text-sm">{(g.usedBy || []).length} <span className="text-[10px] opacity-40">/</span> {g.maxUses}</td>
-                      <td className="px-6 py-8 text-right"><span className={`px-4 py-1.5 rounded-full text-[9px] font-black italic ${g.isActive ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>{g.isActive ? 'ĐANG KÍCH HOẠT' : 'ĐÃ KẾT THÚC'}</span></td>
+                      <td className="px-6 py-8 text-right"><span className={`px-4 py-1.5 rounded-full text-[9px] font-black italic ${g.isActive ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>{g.isActive ? 'ĐANG KÍCH HOẠT' : 'ĐÃ KẾT THÚC'}</span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -347,7 +357,9 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast 
                        <input type="number" placeholder="100" value={newGc.maxUses} onChange={e => setNewGc({...newGc, maxUses: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/5 rounded-3xl px-7 py-5 text-white font-black italic outline-none focus:border-emerald-500 transition-all shadow-inner" />
                     </div>
                  </div>
-                 <button onClick={handleCreateGiftcode} className="w-full py-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-3xl uppercase italic tracking-widest shadow-2xl shadow-emerald-600/30 transition-all active:scale-95 mt-4">PHÁT HÀNH GIFTCODE</button>
+                 <button onClick={handleCreateGiftcode} disabled={isActionLoading} className="w-full py-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-3xl uppercase italic tracking-widest shadow-2xl shadow-emerald-600/30 transition-all active:scale-95 mt-4 flex items-center justify-center">
+                    {isActionLoading ? <Loader2 className="animate-spin" /> : 'PHÁT HÀNH GIFTCODE'}
+                 </button>
               </div>
            </div>
         </div>

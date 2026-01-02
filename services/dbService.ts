@@ -255,7 +255,18 @@ export const dbService = {
     return { success: !error };
   },
   getGiftcodes: async () => { const { data } = await supabase.from('giftcodes').select('*').order('created_at', { ascending: false }); return (data || []).map(mapGiftcode); },
-  addGiftcode: async (gc: any) => { const { error } = await supabase.from('giftcodes').insert([{ ...gc, used_by: [], created_at: new Date().toISOString(), is_active: true }]); return { error }; },
+  addGiftcode: async (code: string, amount: number, maxUses: number) => {
+    // Explicitly mapping to snake_case as expected by Supabase schema to avoid "column does not exist" errors
+    const { error } = await supabase.from('giftcodes').insert([{
+      code: code.trim().toUpperCase(),
+      amount: Number(amount),
+      max_uses: Number(maxUses),
+      used_by: [],
+      created_at: new Date().toISOString(),
+      is_active: true
+    }]);
+    return { error };
+  },
   getAds: async (inc = false) => { let q = supabase.from('ads').select('*'); if (!inc) q = q.eq('is_active', true); const { data } = await q; return (data || []).map(a => ({...a, imageUrl: a.image_url, targetUrl: a.target_url})); },
   saveAd: async (ad: any) => { return await supabase.from('ads').insert([{ title: ad.title, image_url: ad.imageUrl, target_url: ad.targetUrl, is_active: true, created_at: new Date().toISOString() }]); },
   updateAdStatus: async (id: string, s: boolean) => { return await supabase.from('ads').update({ is_active: s }).eq('id', id); },
