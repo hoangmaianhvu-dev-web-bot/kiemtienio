@@ -134,20 +134,24 @@ export const dbService = {
   },
 
   deleteUser: async (userId: string) => {
-    // 1. Xóa các bản ghi liên quan để tránh lỗi ràng buộc khóa ngoại (Foreign Key Constraints)
-    // Nếu Supabase đã có ON DELETE CASCADE thì không cần, nhưng làm thủ công cho chắc chắn
-    await supabase.from('withdrawals').delete().eq('user_id', userId);
-    await supabase.from('notifications').delete().eq('user_id', userId);
-    await supabase.from('vip_requests').delete().eq('user_id', userId);
+    // 1. Xóa tất cả dữ liệu phụ thuộc trước để tránh lỗi Foreign Key
+    // Trong môi trường thực tế, DB nên được cấu hình ON DELETE CASCADE.
+    await Promise.all([
+      supabase.from('withdrawals').delete().eq('user_id', userId),
+      supabase.from('notifications').delete().eq('user_id', userId),
+      supabase.from('vip_requests').delete().eq('user_id', userId)
+    ]);
 
-    // 2. Thực hiện xóa hội viên chính
+    // 2. Thực hiện xóa hội viên và lấy số dòng bị ảnh hưởng
     const { error, status } = await supabase.from('users_data').delete().eq('id', userId);
     
     if (error) {
-      return { success: false, message: `Lỗi DB: ${error.message}` };
+      console.error("Supabase Delete Error:", error);
+      return { success: false, message: `Lỗi máy chủ: ${error.message}` };
     }
-    
-    return { success: true, message: 'Đã xóa hội viên vĩnh viễn.' };
+
+    // Nếu status là 204 hoặc 200 mà không lỗi, Supabase đã thực thi lệnh thành công
+    return { success: true, message: 'Hội viên đã được xóa khỏi hệ thống.' };
   },
 
   addPointsSecurely: async (userId: string, timeElapsed: number, points: number, gateName: string) => {
@@ -268,7 +272,6 @@ export const dbService = {
   },
   getGiftcodes: async () => { const { data } = await supabase.from('giftcodes').select('*').order('created_at', { ascending: false }); return (data || []).map(mapGiftcode); },
   addGiftcode: async (code: string, amount: number, maxUses: number) => {
-    // Explicitly mapping to snake_case as expected by Supabase schema to avoid "column does not exist" errors
     const { error } = await supabase.from('giftcodes').insert([{
       code: code.trim().toUpperCase(),
       amount: Number(amount),

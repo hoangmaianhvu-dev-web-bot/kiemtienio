@@ -19,7 +19,6 @@ interface AdminProps {
 }
 
 export default function Admin({ user, onUpdateUser, setSecurityModal, showToast, showGoldSuccess }: AdminProps) {
-  // --- LỚP BẢO MẬT TUYỆT ĐỐI ---
   if (!user.isAdmin) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-10 animate-in zoom-in-95">
@@ -103,24 +102,26 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
   };
 
   const handleDeleteUser = async (u: User) => {
+    if (u.id === user.id) return alert("Bạn không thể tự xóa chính mình!");
     if (u.email === 'adminavudev@gmail.com') return alert("Không thể xóa tài khoản Admin hệ thống!");
-    if (!confirm(`CẢNH BÁO NGUY HIỂM: Bạn có chắc chắn muốn xóa VĨNH VIỄN hội viên ${u.fullname}? Dữ liệu liên quan đến người dùng này sẽ biến mất hoàn toàn và không thể khôi phục!`)) return;
+    
+    if (!confirm(`CẢNH BÁO NGUY HIỂM: Bạn có chắc chắn muốn xóa VĨNH VIỄN hội viên ${u.fullname}? Mọi dữ liệu điểm thưởng, lịch sử rút và VIP của họ sẽ biến mất hoàn toàn!`)) return;
     
     setIsActionLoading(true);
     const res = await dbService.deleteUser(u.id);
     
     if (res.success) {
-      // 1. Cập nhật local state ngay lập tức để người dùng biến mất khỏi danh sách
-      setUsers(prev => prev.filter(user => user.id !== u.id));
+      // Cập nhật state cục bộ ngay lập tức để UI biến mất
+      setUsers(prev => prev.filter(item => item.id !== u.id));
       setActiveUserMenu(null);
       
-      // 2. Hiển thị thông báo Gold Modal uy tín
+      // Hiển thị Gold Modal sang trọng báo cáo thành công
       showGoldSuccess(
-        "XÓA THÀNH CÔNG", 
-        `Toàn bộ dữ liệu của hội viên ${u.fullname} đã được xóa vĩnh viễn khỏi máy chủ Nova.`
+        "XÓA HỘI VIÊN THÀNH CÔNG", 
+        `Hệ thống đã loại bỏ toàn bộ dữ liệu của ${u.fullname} khỏi máy chủ Diamond Nova vĩnh viễn.`
       );
     } else {
-      showToast('ADMIN', res.message, 'error');
+      showToast('LỖI HỆ THỐNG', res.message, 'error');
     }
     setIsActionLoading(false);
   };
@@ -149,7 +150,6 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
 
   return (
     <div className="space-y-10 animate-in fade-in pb-32">
-      {/* Admin Identity Banner */}
       <div className="glass-card p-8 rounded-[3.5rem] border border-blue-500/20 bg-blue-600/5 flex items-center justify-between shadow-2xl">
          <div className="flex items-center gap-6">
             <div className="p-4 bg-blue-600 rounded-3xl shadow-lg shadow-blue-600/30">
