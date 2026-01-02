@@ -22,7 +22,8 @@ import {
   ArrowLeft,
   Key,
   Send,
-  AtSign
+  AtSign,
+  Bot
 } from 'lucide-react';
 
 interface Props {
@@ -45,6 +46,7 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
   const [ads, setAds] = useState<AdBanner[]>([]);
   const [currentAdIdx, setCurrentAdIdx] = useState(0);
   const [isResetStep2, setIsResetStep2] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const savedEmail = localStorage.getItem('nova_remember_email');
@@ -74,7 +76,9 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
     const u = await dbService.login(email, password);
+    setIsLoading(false);
     if (u) {
       if (rememberMe) {
         localStorage.setItem('nova_remember_email', email);
@@ -90,7 +94,9 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !password) return setError('Vui lòng điền đủ thông tin!');
+    setIsLoading(true);
     const res = await dbService.signup(email, password, name, referralCode);
+    setIsLoading(false);
     if (res.success) {
       setAuthMode('login');
       setError('');
@@ -102,16 +108,21 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
 
   const handleForgotStep1 = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !telegramUsername) return setError('Vui lòng nhập đầy đủ Email và Telegram Username.');
-    if (!telegramUsername.startsWith('@')) return setError('Username Telegram phải bắt đầu bằng dấu @');
+    if (!email || !telegramUsername) return setError('Vui lòng nhập Email và Username Telegram.');
+    if (!telegramUsername.startsWith('@')) return setError('Username Telegram phải bắt đầu bằng @');
     
+    setIsLoading(true);
     const res = await dbService.requestResetCode(email, telegramUsername);
+    setIsLoading(false);
+
     if (res.success) {
       setIsResetStep2(true);
       setError('');
-      setSuccessMsg(res.message);
-      // Mở bot tự động để người dùng nhận mã
-      window.open('https://t.me/anhvudev_kiemtienonline_bot', '_blank');
+      setSuccessMsg("Yêu cầu thành công! Hãy nhấn nút mở Bot bên dưới.");
+      // Tự động mở bot sau 1.5s
+      setTimeout(() => {
+        window.open(`https://t.me/anhvudev_kiemtienonline_bot?start=reset`, '_blank');
+      }, 1500);
     } else {
       setError(res.message);
     }
@@ -120,13 +131,15 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
   const handleForgotStep2 = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resetCode || !newPassword) return setError('Vui lòng nhập mã và mật khẩu mới.');
+    setIsLoading(true);
     const res = await dbService.resetPassword(email, resetCode, newPassword);
+    setIsLoading(false);
     if (res.success) {
       setAuthMode('login');
       setIsResetStep2(false);
       setResetCode('');
       setNewPassword('');
-      setSuccessMsg('Mật khẩu đã được thay đổi thành công!');
+      setSuccessMsg('Mật khẩu đã được khôi phục thành công!');
     } else {
       setError(res.message);
     }
@@ -224,13 +237,15 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
               <form onSubmit={isResetStep2 ? handleForgotStep2 : handleForgotStep1} className="space-y-4">
                  {!isResetStep2 ? (
                    <>
-                     <div className="bg-blue-500/10 border border-blue-500/20 p-5 rounded-2xl space-y-3">
-                        <div className="flex items-center gap-3">
-                           <MessageCircle className="w-5 h-5 text-blue-400" />
-                           <span className="text-[10px] font-black text-white uppercase italic">XÁC THỰC TELEGRAM</span>
+                     <div className="bg-blue-600/10 border border-blue-500/20 p-5 rounded-3xl space-y-3 shadow-xl border-dashed">
+                        <div className="flex items-center gap-3 text-blue-400">
+                           <Bot className="w-6 h-6 animate-pulse" />
+                           <span className="text-[11px] font-black uppercase italic tracking-widest">BOT TỰ ĐỘNG @ANHVUDEV</span>
                         </div>
                         <p className="text-[10px] text-slate-400 font-medium italic leading-relaxed">
-                          Nhập Username Telegram của bạn (bắt đầu bằng @). Hệ thống sẽ tự động dẫn hướng bạn tới Bot <b>@anhvudev_kiemtienonline_bot</b> để lấy mã.
+                          1. Nhập Email & Username Telegram.<br/>
+                          2. Nhấn nút gửi yêu cầu.<br/>
+                          3. Mở Bot, nhấn <b>Start</b> và gửi Email cho Bot để nhận mã 6 số.
                         </p>
                      </div>
                      <div className="relative group">
@@ -239,8 +254,8 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                          type="email" 
                          value={email} 
                          onChange={e => setEmail(e.target.value)} 
-                         placeholder="ĐỊA CHỈ GMAIL" 
-                         className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-black outline-none focus:border-blue-600 transition-all text-[11px] tracking-wider" 
+                         placeholder="EMAIL ĐÃ ĐĂNG KÝ" 
+                         className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-black outline-none focus:border-blue-600 transition-all text-[11px] tracking-wider shadow-inner" 
                        />
                      </div>
                      <div className="relative group">
@@ -250,22 +265,34 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                          value={telegramUsername} 
                          onChange={e => setTelegramUsername(e.target.value)} 
                          placeholder="USERNAME TELEGRAM (@...)" 
-                         className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-black outline-none focus:border-blue-600 transition-all text-[11px] tracking-wider" 
+                         className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-black outline-none focus:border-blue-600 transition-all text-[11px] tracking-wider shadow-inner" 
                        />
                      </div>
-                     <button className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-600/20 uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-3 italic text-[11px]">
-                       <span>GỬI MÃ & MỞ BOT</span>
+                     <button 
+                        disabled={isLoading}
+                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl shadow-xl shadow-blue-600/30 uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-3 italic text-[11px] disabled:opacity-50"
+                      >
+                       <span>{isLoading ? 'ĐANG XỬ LÝ...' : 'GỬI YÊU CẦU LẤY MÃ'}</span>
                        <Send size={16} />
                      </button>
                    </>
                  ) : (
                    <>
-                     <div className="bg-emerald-500/10 border border-emerald-500/20 p-5 rounded-2xl space-y-3">
+                     <div className="bg-emerald-500/10 border border-emerald-500/20 p-5 rounded-3xl space-y-3 shadow-xl">
                         <div className="flex items-center gap-3 text-emerald-400">
-                           <Key className="w-5 h-5" />
-                           <span className="text-[10px] font-black uppercase italic">KIỂM TRA TIN NHẮN BOT</span>
+                           <Key className="w-6 h-6 animate-bounce" />
+                           <span className="text-[11px] font-black uppercase italic tracking-widest">NHẬP MÃ TỪ BOT</span>
                         </div>
-                        <p className="text-[10px] text-slate-400 font-medium italic">Vui lòng kiểm tra mã xác nhận tại <b>@anhvudev_kiemtienonline_bot</b>.</p>
+                        <p className="text-[10px] text-slate-400 font-medium italic leading-relaxed">
+                          Hãy mở Telegram Bot, gửi Email <b>{email}</b> để nhận mã xác minh 6 số.
+                        </p>
+                        <button 
+                          type="button"
+                          onClick={() => window.open('https://t.me/anhvudev_kiemtienonline_bot', '_blank')}
+                          className="w-full py-2 bg-blue-600/20 text-blue-400 rounded-xl font-black text-[9px] uppercase italic tracking-widest border border-blue-500/20"
+                        >
+                          MỞ BOT LẤY MÃ NGAY
+                        </button>
                      </div>
                      <div className="relative group">
                        <ShieldCheck className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-blue-500 transition-colors" />
@@ -273,8 +300,9 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                          type="text" 
                          value={resetCode} 
                          onChange={e => setResetCode(e.target.value)} 
-                         placeholder="NHẬP MÃ XÁC MINH" 
-                         className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-black outline-none focus:border-blue-600 transition-all text-[11px] tracking-widest text-center" 
+                         placeholder="MÃ XÁC MINH 6 SỐ" 
+                         maxLength={6}
+                         className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-black outline-none focus:border-blue-600 transition-all text-[12px] tracking-[0.5em] text-center shadow-inner" 
                        />
                      </div>
                      <div className="relative group">
@@ -284,14 +312,17 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                          value={newPassword} 
                          onChange={e => setNewPassword(e.target.value)} 
                          placeholder="MẬT KHẨU MỚI" 
-                         className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-black outline-none focus:border-blue-600 transition-all text-[11px] tracking-wider" 
+                         className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-black outline-none focus:border-blue-600 transition-all text-[11px] tracking-wider shadow-inner" 
                        />
                      </div>
-                     <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-2xl shadow-xl shadow-emerald-600/20 uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-3 italic text-[11px]">
-                       <span>XÁC NHẬN ĐỔI MẬT KHẨU</span>
+                     <button 
+                        disabled={isLoading}
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-5 rounded-2xl shadow-xl shadow-emerald-600/30 uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-3 italic text-[11px] disabled:opacity-50"
+                      >
+                       <span>{isLoading ? 'ĐANG LƯU...' : 'ĐỔI MẬT KHẨU'}</span>
                        <Check size={16} />
                      </button>
-                     <button type="button" onClick={() => setIsResetStep2(false)} className="w-full text-[9px] font-black text-slate-500 uppercase italic hover:text-white transition-colors">Thử lại thông tin khác</button>
+                     <button type="button" onClick={() => setIsResetStep2(false)} className="w-full text-[9px] font-black text-slate-500 uppercase italic hover:text-white transition-colors">Quay lại bước 1</button>
                    </>
                  )}
                  <button type="button" onClick={() => setAuthMode('login')} className="w-full flex items-center justify-center gap-2 text-slate-500 hover:text-white transition-all">
@@ -309,7 +340,7 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                       value={name} 
                       onChange={e => setName(e.target.value)} 
                       placeholder="HỌ TÊN THẬT (IN HOA)" 
-                      className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-black uppercase italic outline-none focus:border-blue-600 transition-all text-[11px] tracking-wider" 
+                      className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-black uppercase italic outline-none focus:border-blue-600 transition-all text-[11px] tracking-wider shadow-inner" 
                     />
                   </div>
                 )}
@@ -320,7 +351,7 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                     value={email} 
                     onChange={e => setEmail(e.target.value)} 
                     placeholder="ĐỊA CHỈ EMAIL" 
-                    className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-bold outline-none focus:border-blue-600 transition-all text-[11px] tracking-wider" 
+                    className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-bold outline-none focus:border-blue-600 transition-all text-[11px] tracking-wider shadow-inner" 
                   />
                 </div>
                 <div className="relative group">
@@ -330,7 +361,7 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                     value={password} 
                     onChange={e => setPassword(e.target.value)} 
                     placeholder="MẬT KHẨU" 
-                    className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-bold outline-none focus:border-blue-600 transition-all text-[11px] tracking-wider" 
+                    className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-bold outline-none focus:border-blue-600 transition-all text-[11px] tracking-wider shadow-inner" 
                   />
                 </div>
 
@@ -342,7 +373,7 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                       value={referralCode} 
                       onChange={e => setReferralCode(e.target.value.toUpperCase())} 
                       placeholder="MÃ GIỚI THIỆU (NẾU CÓ)" 
-                      className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-bold outline-none focus:border-blue-600 transition-all text-[11px] uppercase tracking-widest" 
+                      className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl pl-14 pr-6 py-4 text-white font-bold outline-none focus:border-blue-600 transition-all text-[11px] uppercase tracking-widest shadow-inner" 
                     />
                   </div>
                 )}
@@ -350,7 +381,7 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                 {authMode === 'login' && (
                   <div className="flex items-center justify-between px-2 py-2">
                     <button type="button" onClick={() => setRememberMe(!rememberMe)} className="flex items-center gap-3 group">
-                      <div className={`w-5 h-5 rounded-md border transition-all flex items-center justify-center ${rememberMe ? 'bg-blue-600 border-blue-500' : 'border-slate-800 bg-slate-950'}`}>
+                      <div className={`w-5 h-5 rounded-md border transition-all flex items-center justify-center ${rememberMe ? 'bg-blue-600 border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'border-slate-800 bg-slate-950'}`}>
                         {rememberMe && <Check size={12} className="text-white" />}
                       </div>
                       <span className="text-[10px] font-black text-slate-500 uppercase italic group-hover:text-slate-300 transition-colors">Lưu thông tin</span>
@@ -359,9 +390,12 @@ const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                   </div>
                 )}
 
-                <button className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-600/20 uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-3 group mt-4 italic text-[11px]">
-                  <span>{authMode === 'login' ? 'TIẾP TỤC ĐĂNG NHẬP' : 'XÁC THỰC TÀI KHOẢN'}</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <button 
+                  disabled={isLoading}
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl shadow-xl shadow-blue-600/30 uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-3 group mt-4 italic text-[11px] disabled:opacity-50"
+                >
+                  <span>{isLoading ? 'ĐANG ĐĂNG NHẬP...' : authMode === 'login' ? 'TIẾP TỤC ĐĂNG NHẬP' : 'XÁC THỰC TÀI KHOẢN'}</span>
+                  {!isLoading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
                 </button>
               </form>
             )}

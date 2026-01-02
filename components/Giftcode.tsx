@@ -61,7 +61,9 @@ const Giftcode: React.FC<Props> = ({ user, onUpdateUser }) => {
       setStatus('error');
       setMsg('Lỗi hệ thống. Vui lòng thử lại sau.');
     } finally {
-      setTimeout(() => { if (status !== 'loading') setStatus('idle'); }, 5000);
+      // Fix: Functional update used to check the actual state at the time the timeout fires, 
+      // resolving the TypeScript narrowing error in the closure.
+      setTimeout(() => { setStatus(prev => prev !== 'loading' ? 'idle' : prev); }, 5000);
     }
   };
 

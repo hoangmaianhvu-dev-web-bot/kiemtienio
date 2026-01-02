@@ -112,12 +112,12 @@ export const dbService = {
       if (error || !data) return { success: false, message: 'Email không tồn tại.' };
       
       const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+      // Lưu reset_code vào database để Bot có thể đọc được sau này
       await supabase.from('users_data').update({ reset_code: resetCode }).eq('email', email);
       
-      // Ghi nhật ký để Admin biết user nào vừa yêu cầu
-      await dbService.logActivity(data.id, email, 'Yêu cầu Reset mật khẩu', `Telegram: ${telegramUsername}`);
+      await dbService.logActivity(data.id, email, 'Yêu cầu Reset mật khẩu', `Username: ${telegramUsername}`);
       
-      return { success: true, message: `Mã đã được gửi tự động tới ${telegramUsername} qua Bot.` };
+      return { success: true, message: `Mã đã được tạo. Hãy nhấn nút bên dưới để nhận mã qua Bot.` };
     } catch (e: any) {
       return { success: false, message: 'Lỗi máy chủ: ' + e.message };
     }

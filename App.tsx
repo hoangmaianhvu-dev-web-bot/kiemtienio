@@ -13,7 +13,9 @@ import {
   Bell,
   Activity,
   X,
-  Star
+  Star,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 // Components
@@ -38,11 +40,27 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [hasNewNotif, setHasNewNotif] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(
+    (localStorage.getItem('nova_theme') as 'light' | 'dark') || 'dark'
+  );
 
   const loadSession = async () => {
     const sessionUser = await dbService.getCurrentUser();
     setUser(sessionUser);
     setIsLoading(false);
+  };
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    localStorage.setItem('nova_theme', newTheme);
+    if (newTheme === 'light') {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.add('light');
+    } else {
+      document.documentElement.classList.remove('light');
+      document.documentElement.classList.add('dark');
+    }
   };
 
   useEffect(() => {
@@ -144,7 +162,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#06080c] text-slate-200">
+    <div className={`min-h-screen flex ${theme === 'dark' ? 'bg-[#06080c]' : 'bg-slate-50'} text-slate-200 transition-colors duration-500`}>
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-[100] w-72 glass-card border-r border-white/5 transform transition-transform md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-full flex flex-col p-8">
@@ -192,7 +210,7 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 relative">
-        {/* Universal Header with GlobalSearch */}
+        {/* Universal Header with GlobalSearch & ThemeToggle */}
         <header className="flex items-center justify-between gap-6 mb-10 glass-card p-4 rounded-3xl border border-white/5">
            <div className="flex items-center gap-4 md:hidden">
               <button onClick={() => setIsSidebarOpen(true)} className="p-3 bg-slate-900 rounded-xl text-white">
@@ -205,8 +223,21 @@ const App: React.FC = () => {
               <GlobalSearch onNavigate={setCurrentView} isAdmin={user?.isAdmin || false} />
            </div>
 
-           <div className="hidden lg:flex items-center gap-6 px-4">
-              <div className="flex flex-col items-end">
+           <div className="flex items-center gap-3 md:gap-6 px-2 md:px-4">
+              {/* Theme Toggle Button */}
+              <button 
+                onClick={toggleTheme}
+                className="p-3 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-all flex items-center justify-center text-slate-400 hover:text-blue-400 group"
+                title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+              >
+                {theme === 'dark' ? (
+                  <Sun size={20} className="group-hover:rotate-45 transition-transform" />
+                ) : (
+                  <Moon size={20} className="group-hover:-rotate-12 transition-transform" />
+                )}
+              </button>
+
+              <div className="hidden lg:flex flex-col items-end">
                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">Số dư hiện tại</span>
                  <div className="flex items-center gap-2">
                     <Star className="w-3 h-3 text-emerald-500 animate-pulse" />
@@ -230,7 +261,7 @@ const App: React.FC = () => {
         {/* Floating Online Status Badge */}
         <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-3 pointer-events-none">
           <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl border backdrop-blur-3xl shadow-2xl transition-all duration-500 pointer-events-auto ${isOnline ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
-            <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse' : 'bg-red-500'}`}></div>
+            <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,1)] animate-pulse' : 'bg-red-500'}`}></div>
             <div className="flex flex-col">
               <span className="text-[9px] font-black uppercase tracking-widest leading-none mb-1">Hệ thống</span>
               <span className="text-[11px] font-black uppercase italic tracking-tighter leading-none">{isOnline ? 'Trực tuyến' : 'Mất kết nối'}</span>

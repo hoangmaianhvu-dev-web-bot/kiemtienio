@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User, WithdrawalRequest, Giftcode, Announcement, AdBanner, ActivityLog } from '../types.ts';
 import { dbService } from '../services/dbService.ts';
 import { formatK } from '../constants.tsx';
@@ -7,7 +7,7 @@ import {
   Users, CreditCard, Search, Ban, Unlock, Plus, Trash2, Megaphone, ShieldCheck, 
   ShoppingBag, Ticket, History, Activity, Database, Copy, CheckCircle2, X, 
   PlusCircle, Gamepad2, Building2, AlertTriangle, Loader2, Eye, EyeOff,
-  LayoutTemplate, Image as ImageIcon, MessageSquarePlus, Tag
+  LayoutTemplate, ImageIcon, MessageSquarePlus, Tag
 } from 'lucide-react';
 
 interface Props {
@@ -32,6 +32,15 @@ const Admin: React.FC<Props> = ({ user }) => {
   const [newAd, setNewAd] = useState({ title: '', imageUrl: '', targetUrl: '' });
   const [newAnn, setNewAnn] = useState({ title: '', content: '', priority: 'low' as 'low' | 'high' });
   const [newGc, setNewGc] = useState({ code: '', amount: 10000, maxUses: 100 });
+
+  // Fix: Definition for filteredWithdrawals to solve "Cannot find name 'filteredWithdrawals'" error
+  const filteredWithdrawals = useMemo(() => {
+    return withdrawals.filter(w => 
+      w.userName.toLowerCase().includes(withdrawSearchTerm.toLowerCase()) ||
+      w.details.toLowerCase().includes(withdrawSearchTerm.toLowerCase()) ||
+      w.id.toLowerCase().includes(withdrawSearchTerm.toLowerCase())
+    );
+  }, [withdrawals, withdrawSearchTerm]);
 
   const refreshData = async () => {
     setIsSyncing(true);
@@ -73,15 +82,10 @@ const Admin: React.FC<Props> = ({ user }) => {
 
   const handleAddAd = async () => {
     if (!newAd.title || !newAd.imageUrl) return alert("Vui lòng nhập đủ thông tin!");
-    try {
-      const { error } = await dbService.saveAd(newAd);
-      if (error) throw error;
-      setNewAd({ title: '', imageUrl: '', targetUrl: '' });
-      setShowModal(null);
-      refreshData();
-    } catch (err: any) {
-      alert("Lỗi khi tạo quảng cáo: " + (err?.message || "Lỗi hệ thống. Đảm bảo bạn đã chạy SQL Setup."));
-    }
+    await dbService.saveAd(newAd);
+    setNewAd({ title: '', imageUrl: '', targetUrl: '' });
+    setShowModal(null);
+    refreshData();
   };
 
   const handleToggleAd = async (id: string, current: boolean) => {
@@ -98,15 +102,10 @@ const Admin: React.FC<Props> = ({ user }) => {
 
   const handleAddAnn = async () => {
     if (!newAnn.title || !newAnn.content) return alert("Vui lòng nhập đủ thông tin!");
-    try {
-      const { error } = await dbService.saveAnnouncement(newAnn);
-      if (error) throw error;
-      setNewAnn({ title: '', content: '', priority: 'low' });
-      setShowModal(null);
-      refreshData();
-    } catch (err: any) {
-      alert("Lỗi khi tạo thông báo: " + (err?.message || "Lỗi hệ thống. Đảm bảo bạn đã chạy SQL Setup."));
-    }
+    await dbService.saveAnnouncement(newAnn);
+    setNewAnn({ title: '', content: '', priority: 'low' });
+    setShowModal(null);
+    refreshData();
   };
 
   const handleToggleAnn = async (id: string, current: boolean) => {
@@ -123,15 +122,10 @@ const Admin: React.FC<Props> = ({ user }) => {
 
   const handleAddGc = async () => {
     if (!newGc.code || !newGc.amount) return alert("Vui lòng nhập đủ thông tin!");
-    try {
-      const { error } = await dbService.addGiftcode(newGc);
-      if (error) throw error;
-      setNewGc({ code: '', amount: 10000, maxUses: 100 });
-      setShowModal(null);
-      refreshData();
-    } catch (err: any) {
-      alert("Lỗi khi tạo Giftcode: " + (err?.message || "Lỗi hệ thống. Đảm bảo bạn đã chạy SQL Setup."));
-    }
+    await dbService.addGiftcode(newGc);
+    setNewGc({ code: '', amount: 10000, maxUses: 100 });
+    setShowModal(null);
+    refreshData();
   };
 
   const handleToggleGc = async (code: string, current: boolean) => {
@@ -225,47 +219,11 @@ CREATE TABLE IF NOT EXISTS public.activity_logs (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- REPAIR: TỰ ĐỘNG THÊM CỘT BỊ THIẾU VÀO CÁC BẢNG HIỆN CÓ
+-- REPAIR: TỰ ĐỘNG THÊM CỘT BỊ THIẾU
 DO $$ 
 BEGIN
-    -- Sửa bảng users_data
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users_data' AND column_name='reset_code') THEN
         ALTER TABLE public.users_data ADD COLUMN reset_code TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users_data' AND column_name='tasks_today') THEN
-        ALTER TABLE public.users_data ADD COLUMN tasks_today INTEGER DEFAULT 0;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users_data' AND column_name='tasks_week') THEN
-        ALTER TABLE public.users_data ADD COLUMN tasks_week INTEGER DEFAULT 0;
-    END IF;
-
-    -- Sửa bảng ads
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ads' AND column_name='created_at') THEN
-        ALTER TABLE public.ads ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ads' AND column_name='is_active') THEN
-        ALTER TABLE public.ads ADD COLUMN is_active BOOLEAN DEFAULT true;
-    END IF;
-
-    -- Sửa bảng announcements
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='announcements' AND column_name='created_at') THEN
-        ALTER TABLE public.announcements ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='announcements' AND column_name='is_active') THEN
-        ALTER TABLE public.announcements ADD COLUMN is_active BOOLEAN DEFAULT true;
-    END IF;
-
-    -- Sửa bảng giftcodes
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='giftcodes' AND column_name='created_at') THEN
-        ALTER TABLE public.giftcodes ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='giftcodes' AND column_name='is_active') THEN
-        ALTER TABLE public.giftcodes ADD COLUMN is_active BOOLEAN DEFAULT true;
-    END IF;
-
-    -- Sửa bảng withdrawals
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='withdrawals' AND column_name='created_at') THEN
-        ALTER TABLE public.withdrawals ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
     END IF;
 END $$;
 
@@ -280,11 +238,6 @@ ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;`;
     setSqlCopied(true);
     setTimeout(() => setSqlCopied(false), 2000);
   };
-
-  const filteredWithdrawals = withdrawals.filter(w => 
-    w.userName.toLowerCase().includes(withdrawSearchTerm.toLowerCase()) ||
-    w.details.toLowerCase().includes(withdrawSearchTerm.toLowerCase())
-  );
 
   return (
     <div className="space-y-8 animate-in fade-in pb-20">
@@ -545,17 +498,8 @@ CREATE TABLE IF NOT EXISTS public.users_data (
 -- REPAIR: TỰ ĐỘNG THÊM CỘT BỊ THIẾU
 DO $$ 
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ads' AND column_name='created_at') THEN
-        ALTER TABLE public.ads ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ads' AND column_name='is_active') THEN
-        ALTER TABLE public.ads ADD COLUMN is_active BOOLEAN DEFAULT true;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='announcements' AND column_name='created_at') THEN
-        ALTER TABLE public.announcements ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='giftcodes' AND column_name='created_at') THEN
-        ALTER TABLE public.giftcodes ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users_data' AND column_name='reset_code') THEN
+        ALTER TABLE public.users_data ADD COLUMN reset_code TEXT;
     END IF;
 END $$;`}
                     </pre>
@@ -578,7 +522,7 @@ END $$;`}
               {showModal === 'ad' && (
                 <div className="space-y-6">
                    <div className="flex flex-col items-center gap-3">
-                      <div className="p-4 bg-blue-600/20 rounded-2xl text-blue-500 border border-blue-500/20"><ImageIcon className="w-8 h-8" /></div>
+                      <div className="p-4 bg-blue-600/20 rounded-2xl text-blue-500 border border-blue-500/20"><LayoutTemplate className="w-8 h-8" /></div>
                       <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter text-center">TẠO QUẢNG CÁO</h3>
                    </div>
                    <div className="space-y-4">
