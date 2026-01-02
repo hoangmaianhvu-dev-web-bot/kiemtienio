@@ -2,10 +2,10 @@
 import { BLOG_DESTINATION, TASK_RATES } from '../constants.tsx';
 
 /**
- * Nova Cloud Link Extractor v12.1:
- * - Tối ưu bóc tách cho LINK4M và LAYMANET.
- * - Hỗ trợ đa dạng cấu trúc JSON trả về từ các nhà cung cấp.
- * - Tuyệt đối không để lộ link API hoặc nội dung JSON cho người dùng.
+ * Nova Cloud Link Extractor v12.2:
+ * - Tối ưu hóa đặc biệt cho LINK4M (JSON v2) và LAYMANET (Text format).
+ * - Sử dụng cơ chế bóc tách đa tầng (JSON -> Text -> Regex).
+ * - Đảm bảo mở trực tiếp link rút gọn cuối cùng.
  */
 export const openTaskLink = async (taskId: number, userId: string, token: string) => {
   const task = TASK_RATES[taskId];
@@ -14,10 +14,11 @@ export const openTaskLink = async (taskId: number, userId: string, token: string
   const dest = encodeURIComponent(`${BLOG_DESTINATION}?uid=${userId}&tid=${taskId}&key=${token}`);
   let apiUrl = "";
   let isDirectRedirect = false;
+  let preferredFormat = "json";
 
-  // Cấu hình API Endpoint chuẩn xác cho từng cổng
+  // Cấu hình API Endpoint tối ưu
   switch(taskId) {
-    case 1: // LINK4M (v2)
+    case 1: // LINK4M
       apiUrl = `https://link4m.co/api-shorten/v2?api=${task.apiKey}&url=${dest}`; 
       break;
     case 2: // YEULINK
@@ -33,8 +34,9 @@ export const openTaskLink = async (taskId: number, userId: string, token: string
       apiUrl = `https://services.traffictot.com/api/v1/shorten/redirect?api_key=${task.apiKey}&url=${dest}`;
       isDirectRedirect = true;
       break;
-    case 6: // LAYMANET (Quicklink API)
-      apiUrl = `https://api.layma.net/api/admin/shortlink/quicklink?tokenUser=${task.apiKey}&format=json&url=${dest}`; 
+    case 6: // LAYMANET - Chuyển sang format=text để lấy link trực tiếp
+      apiUrl = `https://api.layma.net/api/admin/shortlink/quicklink?tokenUser=${task.apiKey}&format=text&url=${dest}`; 
+      preferredFormat = "text";
       break;
   }
 
@@ -96,41 +98,42 @@ export const openTaskLink = async (taskId: number, userId: string, token: string
     let realLink = "";
     const rawContent = proxyData.contents.trim();
 
-    try {
-      // Thử parse JSON trước
-      const data = JSON.parse(rawContent);
-      
-      // Tìm link trong mọi cấu trúc JSON khả thi
-      realLink = 
-        data.shortenedUrl || // LINK4M
-        data.shortlink ||    // LAYMANET, YEULINK
-        data.url ||          // LAYMANET, XLINK
-        data.link ||         // YEUMONEY
-        (data.data && (data.data.shortenedUrl || data.data.shortlink || data.data.url || data.data.link)) ||
-        (data.result && (data.result.shortenedUrl || data.result.shortlink));
-
-      // Xử lý nếu API trả về HTML chứa link
-      if (typeof realLink === 'string' && realLink.includes('<a href="')) {
-        const match = realLink.match(/href="([^"]+)"/);
-        if (match) realLink = match[1];
-      }
-    } catch (e) {
-      // Nếu không phải JSON, kiểm tra xem nội dung thô có phải là URL không
-      if (rawContent.startsWith('http')) {
-        realLink = rawContent;
+    // Nếu format là text (như LaymaNet), content chính là link
+    if (preferredFormat === "text" && rawContent.startsWith('http')) {
+      realLink = rawContent;
+    } else {
+      try {
+        const data = JSON.parse(rawContent);
+        // Ưu tiên bóc tách theo thứ tự cấu trúc phổ biến của các cổng
+        realLink = 
+          data.shortenedUrl || 
+          data.shortlink || 
+          data.url || 
+          data.link || 
+          (data.data && (data.data.shortenedUrl || data.data.shortlink || data.data.url || data.data.link)) ||
+          (data.result && (data.result.shortenedUrl || data.result.shortlink));
+      } catch (e) {
+        // Fallback: Tìm link bằng Regex nếu không phải JSON
+        const urlMatch = rawContent.match(/https?:\/\/[^\s"'<>]+/);
+        if (urlMatch) realLink = urlMatch[0];
       }
     }
 
-    // Kiểm tra tính hợp lệ của link cuối cùng
-    if (realLink && typeof realLink === 'string' && realLink.startsWith('http') && !realLink.includes('api-shorten')) {
+    // Làm sạch link: xóa các ký tự thừa
+    if (realLink) {
+        realLink = realLink.replace(/["']/g, '');
+    }
+
+    // Chuyển hướng nếu hợp lệ
+    if (realLink && realLink.startsWith('http') && !realLink.includes('api-shorten') && !realLink.includes('quicklink')) {
       if (newWindow) {
         newWindow.location.href = realLink;
       }
     } else {
-      throw new Error("Could not extract valid shortened URL");
+      throw new Error("Invalid final link extracted");
     }
   } catch (error) {
-    console.error("Nova Sync Failed for Task ID " + taskId + ":", error);
+    console.error("Nova Sync Error:", error);
     if (newWindow) {
       newWindow.document.getElementById('status')!.innerText = "KHÔNG THỂ TRÍCH XUẤT LIÊN KẾT.";
       newWindow.document.getElementById('error')!.style.display = 'block';

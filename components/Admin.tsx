@@ -7,7 +7,7 @@ import {
   Users, CreditCard, Search, Ban, Unlock, Plus, Trash2, Megaphone, ShieldCheck, 
   ShoppingBag, Ticket, History, Activity, Database, Copy, CheckCircle2, X, 
   PlusCircle, Gamepad2, Building2, AlertTriangle, Loader2, Eye, EyeOff,
-  LayoutTemplate, ImageIcon, MessageSquarePlus, Tag, UserPlus
+  LayoutTemplate, ImageIcon, MessageSquarePlus, Tag, UserPlus, BarChart3, TrendingUp
 } from 'lucide-react';
 
 interface Props {
@@ -40,6 +40,12 @@ const Admin: React.FC<Props> = ({ user }) => {
       w.id.toLowerCase().includes(withdrawSearchTerm.toLowerCase())
     );
   }, [withdrawals, withdrawSearchTerm]);
+
+  const stats = useMemo(() => {
+    const totalBalance = allUsers.reduce((sum, u) => sum + (u.balance || 0), 0);
+    const pendingWithdrawals = withdrawals.filter(w => w.status === 'pending').length;
+    return { totalUsers: allUsers.length, totalBalance, pendingWithdrawals };
+  }, [allUsers, withdrawals]);
 
   const refreshData = async () => {
     setIsSyncing(true);
@@ -245,24 +251,39 @@ ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;`;
           <div className="p-4 bg-blue-600 rounded-2xl shadow-xl shadow-blue-600/20"><ShieldCheck className="w-8 h-8 text-white" /></div>
           <div>
             <h1 className="text-3xl font-black text-white italic uppercase tracking-tighter">NOVA ADMIN</h1>
-            <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest italic mt-1">Hệ thống quản trị Vision 1.1</p>
+            <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest italic mt-1">Hệ thống quản trị Vision 1.2</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* TỔNG SỐ NGƯỜI DÙNG CARD */}
-          <div className="bg-slate-900 border border-white/5 px-6 py-3 rounded-2xl flex items-center gap-4 shadow-xl">
-             <div className="p-2 bg-blue-600/10 rounded-lg text-blue-400">
-                <Users size={16} />
-             </div>
-             <div>
-                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest block">TỔNG HỘI VIÊN</span>
-                <span className="text-lg font-black text-white italic">{allUsers.length.toLocaleString()}</span>
-             </div>
-          </div>
           <button onClick={refreshData} className="px-6 py-4 bg-slate-900 border border-white/5 rounded-2xl text-[10px] font-black uppercase text-white hover:bg-slate-800 flex items-center gap-2 transition-all">
-             <Activity className={`w-4 h-4 ${isSyncing ? 'animate-spin text-blue-400' : ''}`} /> ĐỒNG BỘ
+             <Activity className={`w-4 h-4 ${isSyncing ? 'animate-spin text-blue-400' : ''}`} /> ĐỒNG BỘ DỮ LIỆU
           </button>
+        </div>
+      </div>
+
+      {/* TỔNG QUAN THỐNG KÊ (NEW SECTION) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="glass-card p-8 rounded-[2.5rem] border border-blue-500/10 flex items-center justify-between bg-blue-500/5">
+           <div>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">TỔNG HỘI VIÊN</span>
+              <h2 className="text-4xl font-black text-white italic tracking-tighter">{stats.totalUsers.toLocaleString()}</h2>
+           </div>
+           <div className="p-4 bg-blue-600/10 rounded-2xl text-blue-400"><Users size={32} /></div>
+        </div>
+        <div className="glass-card p-8 rounded-[2.5rem] border border-emerald-500/10 flex items-center justify-between bg-emerald-500/5">
+           <div>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">TỔNG ĐIỂM HỆ THỐNG</span>
+              <h2 className="text-4xl font-black text-white italic tracking-tighter">{formatK(stats.totalBalance)} P</h2>
+           </div>
+           <div className="p-4 bg-emerald-600/10 rounded-2xl text-emerald-400"><TrendingUp size={32} /></div>
+        </div>
+        <div className="glass-card p-8 rounded-[2.5rem] border border-amber-500/10 flex items-center justify-between bg-amber-500/5">
+           <div>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">YÊU CẦU ĐANG CHỜ</span>
+              <h2 className="text-4xl font-black text-white italic tracking-tighter">{stats.pendingWithdrawals}</h2>
+           </div>
+           <div className="p-4 bg-amber-600/10 rounded-2xl text-amber-400"><CreditCard size={32} /></div>
         </div>
       </div>
 
