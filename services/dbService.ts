@@ -116,7 +116,7 @@ export const dbService = {
         const { data: referrer } = await supabase.from('users_data').select('balance, referral_count, referral_bonus').eq('id', refBy).single();
         if (referrer) {
             await supabase.from('users_data').update({
-                balance: referrer.balance + REFERRAL_REWARD,
+                balance: Number(referrer.balance) + REFERRAL_REWARD,
                 referral_count: (referrer.referral_count || 0) + 1,
                 referral_bonus: (referrer.referral_bonus || 0) + REFERRAL_REWARD
             }).eq('id', refBy);
@@ -163,15 +163,7 @@ export const dbService = {
   updateUser: async (userId: string, updates: Partial<User>) => {
     const dbUpdates: any = {};
     
-    // Explicit list of allowed columns to prevent SQL injection or accidental updates
-    const validColumns = [
-      'fullname', 'bank_info', 'id_game', 'phone_number', 'avatar_url', 
-      'balance', 'is_banned', 'ban_reason', 'vip_tier', 'vip_until',
-      'total_earned', 'total_giftcode_earned', 'tasks_today', 'tasks_week',
-      'task_counts', 'last_task_date', 'security_score'
-    ];
-
-    // Map camelCase to snake_case
+    // Map camelCase to snake_case for DB
     if (updates.bankInfo !== undefined) dbUpdates.bank_info = updates.bankInfo;
     if (updates.idGame !== undefined) dbUpdates.id_game = updates.idGame;
     if (updates.phoneNumber !== undefined) dbUpdates.phone_number = updates.phoneNumber;
@@ -179,15 +171,21 @@ export const dbService = {
     if (updates.isBanned !== undefined) dbUpdates.is_banned = updates.isBanned;
     if (updates.banReason !== undefined) dbUpdates.ban_reason = updates.banReason;
     if (updates.fullname !== undefined) dbUpdates.fullname = updates.fullname;
-    if (updates.balance !== undefined) dbUpdates.balance = updates.balance;
+    if (updates.balance !== undefined) dbUpdates.balance = Number(updates.balance);
     if (updates.vipTier !== undefined) dbUpdates.vip_tier = updates.vipTier;
     if (updates.vipUntil !== undefined) dbUpdates.vip_until = updates.vipUntil;
 
-    // Remove undefined keys
-    Object.keys(dbUpdates).forEach(key => dbUpdates[key] === undefined && delete dbUpdates[key]);
+    // Filter out undefined to prevent updating with nulls
+    const filteredUpdates = Object.fromEntries(
+      Object.entries(dbUpdates).filter(([_, v]) => v !== undefined)
+    );
 
-    const { error } = await supabase.from('users_data').update(dbUpdates).eq('id', userId);
-    return { success: !error, message: error ? `Lỗi hệ thống: ${error.message}` : 'Cập nhật thành công.' };
+    const { error } = await supabase.from('users_data').update(filteredUpdates).eq('id', userId);
+    if (error) {
+      console.error("Supabase Update Error:", error);
+      return { success: false, message: `Lỗi hệ thống: ${error.message}` };
+    }
+    return { success: true, message: 'Cập nhật thành công.' };
   },
 
   linkPhone: async (userId: string, phone: string) => {
@@ -218,20 +216,30 @@ export const dbService = {
   },
 
   adjustBalance: async (userId: string, amount: number) => {
-    // We must fetch current balance first to avoid issues with nulls or string conversions
-    const { data: u, error: fetchError } = await supabase.from('users_data').select('balance').eq('id', userId).single();
+    const { data: u, error: fetchError } = await supabase
+      .from('users_data')
+      .select('balance')
+      .eq('id', userId)
+      .single();
+      
     if (fetchError || !u) return { success: false, message: 'Không tìm thấy người dùng.' };
     
     const currentBalance = Number(u.balance || 0);
-    const newBalance = currentBalance + amount;
+    const newBalance = currentBalance + Number(amount);
 
     const { error } = await supabase.from('users_data').update({ balance: newBalance }).eq('id', userId);
-    return { success: !error, message: error ? `Lỗi: ${error.message}` : 'Cập nhật số dư thành công.' };
+    if (error) return { success: false, message: `Lỗi: ${error.message}` };
+    return { success: true, message: 'Cập nhật số dư thành công.' };
   },
 
   deleteUser: async (userId: string) => {
+    // Note: If there are foreign keys (e.g. withdrawals), the delete might fail 
+    // depending on ON DELETE CASCADE settings in DB.
     const { error } = await supabase.from('users_data').delete().eq('id', userId);
-    if (error) return { success: false, message: `Lỗi: ${error.message}` };
+    if (error) {
+      console.error("Supabase Delete Error:", error);
+      return { success: false, message: `Không thể xóa: ${error.message}. (Có thể do hội viên đang có dữ liệu giao dịch liên quan)` };
+    }
     return { success: true, message: 'Đã xóa hội viên vĩnh viễn.' };
   },
 
@@ -317,7 +325,7 @@ export const dbService = {
     if (!error) {
         const { data: u } = await supabase.from('users_data').select('balance').eq('id', request.userId).single();
         if (u) {
-            await supabase.from('users_data').update({ balance: u.balance - (request.amount * RATE_VND_TO_POINT) }).eq('id', request.userId);
+            await supabase.from('users_data').update({ balance: Number(u.balance) - (request.amount * RATE_VND_TO_POINT) }).eq('id', request.userId);
         }
         await dbService.addNotification({
           userId: 'all',
@@ -338,7 +346,7 @@ export const dbService = {
     if (!error && status === 'rejected') {
         const { data: u } = await supabase.from('users_data').select('balance').eq('id', w.user_id).single();
         if (u) {
-            await supabase.from('users_data').update({ balance: u.balance + (w.amount * RATE_VND_TO_POINT) }).eq('id', w.user_id);
+            await supabase.from('users_data').update({ balance: Number(u.balance) + (w.amount * RATE_VND_TO_POINT) }).eq('id', w.user_id);
         }
     }
     return { success: !error };
@@ -373,7 +381,7 @@ export const dbService = {
     if (!u) return { success: false, message: 'Người dùng không tồn tại.' };
 
     const { error: updateError } = await supabase.from('users_data').update({ 
-      balance: u.balance + gc.amount,
+      balance: Number(u.balance) + gc.amount,
       total_giftcode_earned: (u.total_giftcode_earned || 0) + gc.amount
     }).eq('id', userId);
     
@@ -449,7 +457,7 @@ export const dbService = {
     const vipUntil = new Date();
     vipUntil.setDate(vipUntil.getDate() + days);
     const { error } = await supabase.from('users_data').update({
-      balance: u.balance - pointsNeeded,
+      balance: Number(u.balance) - pointsNeeded,
       vip_tier: tier,
       vip_until: vipUntil.toISOString()
     }).eq('id', userId);
@@ -463,9 +471,9 @@ export const dbService = {
     const newCounts = { ...(u.task_counts || {}) };
     newCounts[gateName] = (newCounts[gateName] || 0) + 1;
     const { error } = await supabase.from('users_data').update({
-      balance: u.balance + points,
-      total_earned: u.total_earned + points,
-      tasks_today: u.tasks_today + 1,
+      balance: Number(u.balance) + points,
+      total_earned: Number(u.total_earned) + points,
+      tasks_today: Number(u.tasks_today) + 1,
       last_task_date: new Date().toISOString(),
       task_counts: newCounts
     }).eq('id', userId);

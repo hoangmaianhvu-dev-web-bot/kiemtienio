@@ -7,7 +7,7 @@ import {
   Users, CreditCard, Ticket, Megaphone, ImageIcon, Eye, EyeOff, Trash2, 
   PlusCircle, Search, CheckCircle2, XCircle, Settings, UserMinus, 
   UserPlus, ShieldAlert, Ban, Unlock, Wallet, Activity, TrendingUp, DollarSign,
-  RefreshCcw, UserX, AlertTriangle
+  RefreshCcw, UserX, AlertTriangle, Loader2
 } from 'lucide-react';
 
 interface AdminProps {
@@ -33,6 +33,7 @@ export default function Admin({ user, onUpdateUser }: AdminProps) {
   
   const [activeUserMenu, setActiveUserMenu] = useState<string | null>(null);
   const [searchUser, setSearchUser] = useState('');
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   const refreshData = async () => {
     try {
@@ -96,6 +97,7 @@ export default function Admin({ user, onUpdateUser }: AdminProps) {
   }, [users, searchUser]);
 
   const handleToggleBan = async (u: User) => {
+    if (isActionLoading) return;
     const isUnbanning = u.isBanned;
     const reason = isUnbanning ? '' : prompt('Lý do khóa tài khoản?') || 'Vi phạm chính sách';
     
@@ -104,17 +106,21 @@ export default function Admin({ user, onUpdateUser }: AdminProps) {
       return;
     }
 
+    setIsActionLoading(true);
+    setActiveUserMenu(null); // Close menu immediately for better UX
+    
     const res = await dbService.updateUser(u.id, { isBanned: !u.isBanned, banReason: reason });
     if (res.success) {
       alert(`Đã ${isUnbanning ? 'MỞ KHÓA (Unban)' : 'KHÓA (Ban)'} tài khoản thành công.`);
-      refreshData();
+      await refreshData();
     } else {
       alert(res.message);
     }
-    setActiveUserMenu(null);
+    setIsActionLoading(false);
   };
 
   const handleAdjustPoints = async (userId: string, isAdd: boolean) => {
+    if (isActionLoading) return;
     const amountStr = prompt(`Nhập số điểm muốn ${isAdd ? 'CỘNG' : 'TRỪ'}?`) || '0';
     const amount = parseInt(amountStr);
     
@@ -123,36 +129,43 @@ export default function Admin({ user, onUpdateUser }: AdminProps) {
       return;
     }
     
+    setIsActionLoading(true);
+    setActiveUserMenu(null);
+    
     const res = await dbService.adjustBalance(userId, isAdd ? amount : -amount);
     if (res.success) {
       alert(res.message);
-      refreshData();
+      await refreshData();
     } else {
       alert(res.message);
     }
-    setActiveUserMenu(null);
+    setIsActionLoading(false);
   };
 
   const handleDeleteUser = async (userId: string) => {
+    if (isActionLoading) return;
     if (!confirm('CẢNH BÁO NGUY HIỂM: BẠN CÓ CHẮC MUỐN XÓA VĨNH VIỄN TÀI KHOẢN NÀY?')) {
       setActiveUserMenu(null);
       return;
     }
     
+    setIsActionLoading(true);
+    setActiveUserMenu(null);
+    
     const res = await dbService.deleteUser(userId);
     if (res.success) {
       alert(res.message);
-      refreshData();
+      await refreshData();
     } else {
       alert(res.message);
     }
-    setActiveUserMenu(null);
+    setIsActionLoading(false);
   };
 
   const handleWithdrawAction = async (id: string, status: string) => {
     await dbService.updateWithdrawalStatus(id, status);
     alert('Đã cập nhật đơn rút.');
-    refreshData();
+    await refreshData();
   };
 
   const handleCreateGiftcode = async () => {
@@ -164,7 +177,7 @@ export default function Admin({ user, onUpdateUser }: AdminProps) {
       alert("Đã tạo Giftcode mới!");
       setShowAddGc(false);
       setNewGc({ code: '', amount: 10000, maxUses: 100 });
-      refreshData();
+      await refreshData();
     }
   };
 
@@ -177,7 +190,7 @@ export default function Admin({ user, onUpdateUser }: AdminProps) {
       alert("Đã tạo Quảng cáo mới!");
       setShowAddAd(false);
       setNewAd({ title: '', imageUrl: '', targetUrl: '' });
-      refreshData();
+      await refreshData();
     }
   };
 
@@ -190,7 +203,7 @@ export default function Admin({ user, onUpdateUser }: AdminProps) {
       alert("Đã đăng thông báo mới!");
       setShowAddAnn(false);
       setNewAnn({ title: '', content: '', priority: 'low' as 'low' | 'high' });
-      refreshData();
+      await refreshData();
     }
   };
 
@@ -224,6 +237,16 @@ export default function Admin({ user, onUpdateUser }: AdminProps) {
            <h3 className="text-xl font-black text-white italic">{stats.activeUsers}</h3>
         </div>
       </div>
+
+      {/* Action Overlay */}
+      {isActionLoading && (
+        <div className="fixed inset-0 z-[300] bg-black/50 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-slate-900 p-8 rounded-[2rem] border border-white/10 flex flex-col items-center gap-4 shadow-2xl">
+            <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+            <span className="text-white font-black uppercase italic text-xs tracking-widest">Đang cập nhật Cloud...</span>
+          </div>
+        </div>
+      )}
 
       {/* Tabs Menu */}
       <div className="flex flex-wrap gap-2">
@@ -509,8 +532,6 @@ export default function Admin({ user, onUpdateUser }: AdminProps) {
           </div>
         )}
       </div>
-
-      {/* Modals remains here... (Giftcode, Ads) */}
 
       {/* Modal Announcement */}
       {showAddAnn && (
