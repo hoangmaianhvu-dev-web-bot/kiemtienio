@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppView, User } from './types.ts';
 import { dbService, supabase } from './services/dbService.ts';
-import { NAV_ITEMS, formatK } from './constants.tsx';
+import { NAV_ITEMS, formatK, SOCIAL_LINKS } from './constants.tsx';
 import { 
   Menu, 
   LogOut, 
@@ -15,7 +15,10 @@ import {
   X,
   Star,
   Sun,
-  Moon
+  Moon,
+  Youtube,
+  MessageCircle,
+  ExternalLink
 } from 'lucide-react';
 
 // Components
@@ -258,8 +261,31 @@ const App: React.FC = () => {
           {renderView()}
         </div>
 
-        {/* Floating Online Status Badge */}
-        <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-3 pointer-events-none">
+        {/* Floating Actions & Online Status Badge */}
+        <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-4 pointer-events-none">
+          {/* Floating Social Icons */}
+          <div className="flex flex-col gap-3 pointer-events-auto">
+            <a 
+              href={SOCIAL_LINKS.YOUTUBE} 
+              target="_blank" 
+              className="w-12 h-12 bg-red-600/20 backdrop-blur-xl border border-red-500/30 rounded-full flex items-center justify-center text-red-500 shadow-lg shadow-red-600/10 hover:bg-red-600 hover:text-white transition-all hover:scale-110 group relative"
+              title="Xem hướng dẫn Video"
+            >
+              <Youtube size={20} />
+              <div className="absolute right-full mr-3 px-3 py-1 bg-black/80 rounded-lg text-[9px] font-black text-white uppercase italic tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/5">HƯỚNG DẪN VIDEO</div>
+            </a>
+            <a 
+              href={SOCIAL_LINKS.TELEGRAM} 
+              target="_blank" 
+              className="w-12 h-12 bg-blue-600/20 backdrop-blur-xl border border-blue-500/30 rounded-full flex items-center justify-center text-blue-500 shadow-lg shadow-blue-600/10 hover:bg-blue-600 hover:text-white transition-all hover:scale-110 group relative"
+              title="Tham gia cộng đồng"
+            >
+              <MessageCircle size={20} />
+              <div className="absolute right-full mr-3 px-3 py-1 bg-black/80 rounded-lg text-[9px] font-black text-white uppercase italic tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/5">CỘNG ĐỒNG NOVA</div>
+            </a>
+          </div>
+
+          {/* Status Badge */}
           <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl border backdrop-blur-3xl shadow-2xl transition-all duration-500 pointer-events-auto ${isOnline ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
             <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,1)] animate-pulse' : 'bg-red-500'}`}></div>
             <div className="flex flex-col">
@@ -279,7 +305,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Offline Overlay Overlay */}
+        {/* Offline Overlay */}
         {!isOnline && (
           <div className="fixed inset-x-0 bottom-0 z-[70] p-4 animate-in slide-in-from-bottom-full duration-500">
             <div className="max-w-4xl mx-auto bg-red-600 text-white px-8 py-5 rounded-[2rem] shadow-2xl flex items-center justify-between border border-white/20">

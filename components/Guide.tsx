@@ -4,10 +4,7 @@ import {
   ShieldCheck, 
   Sparkles, 
   Zap, 
-  MessageCircle, 
-  Youtube, 
   CheckCircle2, 
-  ExternalLink, 
   Target, 
   Key, 
   Flame, 
@@ -19,12 +16,9 @@ import {
   ShieldAlert,
   ArrowRightLeft
 } from 'lucide-react';
-import { SOCIAL_LINKS, WITHDRAW_MILESTONES, RATE_VND_TO_POINT, formatK } from '../constants.tsx';
+import { WITHDRAW_MILESTONES, RATE_VND_TO_POINT } from '../constants.tsx';
 
 const Guide: React.FC = () => {
-  const minWithdrawVND = Math.min(...WITHDRAW_MILESTONES);
-  const minPoints = minWithdrawVND * RATE_VND_TO_POINT;
-
   return (
     <div className="space-y-12 animate-in fade-in duration-700 max-w-5xl mx-auto pb-20">
       {/* Hero Section */}
@@ -194,30 +188,6 @@ const Guide: React.FC = () => {
               <p className="text-sm text-slate-400 font-medium leading-relaxed italic">Không sử dụng VPN, trình chặn quảng cáo hoặc tab ẩn danh khi vượt link.</p>
            </div>
         </div>
-      </div>
-
-      {/* Video & Community */}
-      <div className="flex flex-col md:flex-row gap-8">
-         <a href={SOCIAL_LINKS.YOUTUBE} target="_blank" className="flex-1 glass-card p-10 rounded-[3rem] border border-white/5 hover:bg-red-600/5 hover:border-red-600/30 transition-all flex items-center justify-between group">
-            <div className="flex items-center gap-6">
-               <div className="p-5 bg-red-600/10 rounded-2xl text-red-500 border border-red-500/20"><Youtube className="w-10 h-10" /></div>
-               <div>
-                  <h4 className="text-xl font-black text-white uppercase italic tracking-tighter">XEM VIDEO HƯỚNG DẪN</h4>
-                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Săn kim cương 100% thành công</p>
-               </div>
-            </div>
-            <ExternalLink className="w-6 h-6 text-slate-700 group-hover:text-white transition-colors" />
-         </a>
-         <a href={SOCIAL_LINKS.TELEGRAM} target="_blank" className="flex-1 glass-card p-10 rounded-[3rem] border border-white/5 hover:bg-blue-600/5 hover:border-blue-600/30 transition-all flex items-center justify-between group">
-            <div className="flex items-center gap-6">
-               <div className="p-5 bg-blue-600/10 rounded-2xl text-blue-400 border border-red-500/20"><MessageCircle className="w-10 h-10" /></div>
-               <div>
-                  <h4 className="text-xl font-black text-white uppercase italic tracking-tighter">THAM GIA CỘNG ĐỒNG</h4>
-                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Cập nhật thông tin & Event mới</p>
-               </div>
-            </div>
-            <ExternalLink className="w-6 h-6 text-slate-700 group-hover:text-white transition-colors" />
-         </a>
       </div>
     </div>
   );
