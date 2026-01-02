@@ -7,7 +7,7 @@ import {
   Users, CreditCard, Ticket, Megaphone, ImageIcon, Eye, EyeOff, Trash2, 
   PlusCircle, Search, CheckCircle2, XCircle, Settings, UserMinus, 
   UserPlus, ShieldAlert, Ban, Unlock, Wallet, Activity, TrendingUp, DollarSign,
-  RefreshCcw, UserX, AlertTriangle, Loader2
+  RefreshCcw, UserX, AlertTriangle, Loader2, X
 } from 'lucide-react';
 
 interface AdminProps {
@@ -51,215 +51,76 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast 
       setAds(a);
       setGiftcodes(g);
       setAnnouncements(ann);
-    } catch (err) {
-      console.error("Lỗi tải dữ liệu admin:", err);
-    }
+    } catch (err) { console.error(err); }
   };
 
-  useEffect(() => {
-    refreshData();
-
-    const channels = [
-      supabase.channel('admin-users-sync').on('postgres_changes', { event: '*', schema: 'public', table: 'users_data' }, () => { refreshData(); }).subscribe(),
-      supabase.channel('admin-withdraw-sync').on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawals' }, () => { refreshData(); }).subscribe(),
-      supabase.channel('admin-ads-sync').on('postgres_changes', { event: '*', schema: 'public', table: 'ads' }, () => { refreshData(); }).subscribe(),
-      supabase.channel('admin-gc-sync').on('postgres_changes', { event: '*', schema: 'public', table: 'giftcodes' }, () => { refreshData(); }).subscribe(),
-      supabase.channel('admin-ann-sync').on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => { refreshData(); }).subscribe()
-    ];
-
-    return () => {
-      channels.forEach(c => supabase.removeChannel(c));
-    };
-  }, []);
+  useEffect(() => { refreshData(); }, []);
 
   const stats = useMemo(() => {
     const totalPoints = users.reduce((sum, u) => sum + (Number(u.balance) || 0), 0);
-    const pendingWithdrawals = withdrawals.filter(w => w.status === 'pending').length;
-    const activeUsers = users.filter(u => {
-      if (!u.lastTaskDate) return false;
-      const last = new Date(u.lastTaskDate).getTime();
-      return (Date.now() - last) < (24 * 60 * 60 * 1000);
-    }).length;
-
     return {
       totalUsers: users.length,
       totalPoints,
       realMoney: Math.floor(totalPoints / RATE_VND_TO_POINT),
-      pendingWithdrawals,
-      activeUsers
+      pendingWithdrawals: withdrawals.filter(w => w.status === 'pending').length,
+      activeUsers: users.filter(u => u.lastTaskDate && (Date.now() - new Date(u.lastTaskDate).getTime()) < 86400000).length
     };
   }, [users, withdrawals]);
 
-  const filteredUsers = useMemo(() => {
-    return users.filter(u => 
-      u.fullname.toLowerCase().includes(searchUser.toLowerCase()) || 
-      u.email.toLowerCase().includes(searchUser.toLowerCase())
-    );
-  }, [users, searchUser]);
+  const filteredUsers = useMemo(() => users.filter(u => u.fullname.toLowerCase().includes(searchUser.toLowerCase()) || u.email.toLowerCase().includes(searchUser.toLowerCase())), [users, searchUser]);
 
   const handleToggleBan = async (u: User) => {
-    if (isActionLoading) return;
-    const isUnbanning = u.isBanned;
-    const reason = isUnbanning ? '' : prompt('Lý do khóa tài khoản?') || 'Vi phạm chính sách';
-    
-    if (!isUnbanning && reason === 'Vi phạm chính sách' && !confirm('Xác nhận KHÓA người dùng này?')) {
-      setActiveUserMenu(null);
-      return;
-    }
-
+    const reason = u.isBanned ? '' : prompt('Lý do khóa?') || 'Vi phạm chính sách';
+    if (!u.isBanned && !confirm('KHÓA người dùng này?')) return;
     setIsActionLoading(true);
-    setActiveUserMenu(null); 
-    
     const res = await dbService.updateUser(u.id, { isBanned: !u.isBanned, banReason: reason });
-    if (res.success) {
-      showToast('QUẢN TRỊ VIÊN', `Đã ${isUnbanning ? 'mở khóa' : 'khóa'} tài khoản ${u.fullname} thành công.`, isUnbanning ? 'success' : 'warning');
-      await refreshData();
-    } else {
-      showToast('LỖI', res.message, 'error');
-    }
+    if (res.success) { showToast('ADMIN', `Đã cập nhật trạng thái ${u.fullname}`, 'info'); await refreshData(); }
     setIsActionLoading(false);
   };
 
-  const handleAdjustPoints = async (userId: string, isAdd: boolean) => {
-    if (isActionLoading) return;
-    const amountStr = prompt(`Nhập số điểm muốn ${isAdd ? 'CỘNG' : 'TRỪ'}?`) || '0';
-    const amount = parseInt(amountStr);
-    
-    if (isNaN(amount) || amount === 0) {
-      setActiveUserMenu(null);
-      return;
-    }
-    
+  const handleAdjustPoints = async (uid: string, isAdd: boolean) => {
+    const amt = parseInt(prompt(`Số điểm muốn ${isAdd ? 'CỘNG' : 'TRỪ'}?`) || '0');
+    if (isNaN(amt) || amt === 0) return;
     setIsActionLoading(true);
-    setActiveUserMenu(null);
-    
-    const res = await dbService.adjustBalance(userId, isAdd ? amount : -amount);
-    if (res.success) {
-      showToast('QUẢN TRỊ VIÊN', res.message, 'success');
-      await refreshData();
-    } else {
-      showToast('LỖI', res.message, 'error');
-    }
+    const res = await dbService.adjustBalance(uid, isAdd ? amt : -amt);
+    if (res.success) { showToast('ADMIN', res.message, 'success'); await refreshData(); }
     setIsActionLoading(false);
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (isActionLoading) return;
-    if (!confirm('CẢNH BÁO NGUY HIỂM: BẠN CÓ CHẮC MUỐN XÓA VĨNH VIỄN TÀI KHOẢN NÀY?')) {
-      setActiveUserMenu(null);
-      return;
-    }
-    
-    setIsActionLoading(true);
-    setActiveUserMenu(null);
-    
-    const res = await dbService.deleteUser(userId);
-    if (res.success) {
-      showToast('QUẢN TRỊ VIÊN', 'Đã xóa hội viên vĩnh viễn khỏi Cloud.', 'info');
-      await refreshData();
-    } else {
-      showToast('LỖI', res.message, 'error');
-    }
-    setIsActionLoading(false);
-  };
-
-  const handleWithdrawAction = async (id: string, status: string) => {
-    await dbService.updateWithdrawalStatus(id, status);
-    showToast('QUẢN TRỊ VIÊN', `Đã cập nhật trạng thái đơn rút thành ${status.toUpperCase()}.`, 'info');
+  const handleWithdrawAction = async (id: string, s: string) => {
+    await dbService.updateWithdrawalStatus(id, s);
+    showToast('ADMIN', `Đơn rút ${s.toUpperCase()}`, 'info');
     await refreshData();
   };
 
   const handleCreateGiftcode = async () => {
-    if (!newGc.code || !newGc.amount) return showToast('LỖI', "Vui lòng nhập đủ thông tin.", 'error');
-    const res = await dbService.addGiftcode(newGc);
-    if (res.error) {
-      showToast('LỖI', res.error.message, 'error');
-    } else {
-      showToast('QUẢN TRỊ VIÊN', "Đã tạo Giftcode mới thành công!", 'success');
-      setShowAddGc(false);
-      setNewGc({ code: '', amount: 10000, maxUses: 100 });
-      await refreshData();
-    }
-  };
-
-  const handleCreateAd = async () => {
-    if (!newAd.title || !newAd.imageUrl || !newAd.targetUrl) return showToast('LỖI', "Vui lòng nhập đủ thông tin.", 'error');
-    const res = await dbService.saveAd(newAd);
-    if (res.error) {
-      showToast('LỖI', res.error.message, 'error');
-    } else {
-      showToast('QUẢN TRỊ VIÊN', "Đã tạo Quảng cáo mới!", 'success');
-      setShowAddAd(false);
-      setNewAd({ title: '', imageUrl: '', targetUrl: '' });
-      await refreshData();
-    }
-  };
-
-  const handleCreateAnnouncement = async () => {
-    if (!newAnn.title || !newAnn.content) return showToast('LỖI', "Vui lòng nhập đủ thông tin.", 'error');
-    const res = await dbService.saveAnnouncement(newAnn);
-    if (res.error) {
-      showToast('LỖI', res.error.message, 'error');
-    } else {
-      showToast('QUẢN TRỊ VIÊN', "Đã đăng thông báo mới tới tất cả hội viên!", 'success');
-      setShowAddAnn(false);
-      setNewAnn({ title: '', content: '', priority: 'low' as 'low' | 'high' });
-      await refreshData();
-    }
+    if (!newGc.code || !newGc.amount) return alert("Nhập đủ thông tin.");
+    const res = await dbService.addGiftcode({ ...newGc, max_uses: newGc.maxUses });
+    if (!res.error) { showToast('ADMIN', "Đã tạo Giftcode!", 'success'); setShowAddGc(false); refreshData(); }
   };
 
   return (
     <div className="space-y-8 animate-in fade-in pb-24">
-      {/* Dashboard Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="glass-card p-6 rounded-[2rem] border-l-4 border-l-blue-600 bg-blue-600/5 shadow-xl">
-           <Users className="w-6 h-6 text-blue-500 mb-2" />
-           <p className="text-[9px] font-black text-slate-500 uppercase italic">Hội viên</p>
-           <h3 className="text-xl font-black text-white italic">{stats.totalUsers}</h3>
-        </div>
-        <div className="glass-card p-6 rounded-[2rem] border-l-4 border-l-amber-600 bg-amber-600/5 shadow-xl">
-           <Wallet className="w-6 h-6 text-amber-500 mb-2" />
-           <p className="text-[9px] font-black text-slate-500 uppercase italic">Tổng Điểm</p>
-           <h3 className="text-xl font-black text-white italic">{formatK(stats.totalPoints)}</h3>
-        </div>
-        <div className="glass-card p-6 rounded-[2rem] border-l-4 border-l-emerald-600 bg-emerald-600/5 shadow-xl">
-           <DollarSign className="w-6 h-6 text-emerald-500 mb-2" />
-           <p className="text-[9px] font-black text-slate-500 uppercase italic">Tiền mặt</p>
-           <h3 className="text-xl font-black text-white italic">{stats.realMoney.toLocaleString()}đ</h3>
-        </div>
-        <div className="glass-card p-6 rounded-[2rem] border-l-4 border-l-rose-600 bg-rose-600/5 shadow-xl">
-           <Activity className="w-6 h-6 text-rose-500 mb-2" />
-           <p className="text-[9px] font-black text-slate-500 uppercase italic">Đơn Chờ</p>
-           <h3 className="text-xl font-black text-white italic">{stats.pendingWithdrawals}</h3>
-        </div>
-        <div className="glass-card p-6 rounded-[2rem] border-l-4 border-l-indigo-600 bg-indigo-600/5 shadow-xl">
-           <TrendingUp className="w-6 h-6 text-indigo-500 mb-2" />
-           <p className="text-[9px] font-black text-slate-500 uppercase italic">Online 24h</p>
-           <h3 className="text-xl font-black text-white italic">{stats.activeUsers}</h3>
-        </div>
+        {[
+          { label: 'Hội viên', val: stats.totalUsers, color: 'border-l-blue-600', bg: 'bg-blue-600/5', icon: <Users className="text-blue-500" /> },
+          { label: 'Tổng Điểm', val: formatK(stats.totalPoints), color: 'border-l-amber-600', bg: 'bg-amber-600/5', icon: <Wallet className="text-amber-500" /> },
+          { label: 'Tiền mặt', val: `${stats.realMoney.toLocaleString()}đ`, color: 'border-l-emerald-600', bg: 'bg-emerald-600/5', icon: <DollarSign className="text-emerald-500" /> },
+          { label: 'Đơn Chờ', val: stats.pendingWithdrawals, color: 'border-l-rose-600', bg: 'bg-rose-600/5', icon: <Activity className="text-rose-500" /> },
+          { label: 'Online 24h', val: stats.activeUsers, color: 'border-l-indigo-600', bg: 'bg-indigo-600/5', icon: <TrendingUp className="text-indigo-500" /> }
+        ].map((s, i) => (
+          <div key={i} className={`glass-card p-6 rounded-[2rem] border-l-4 ${s.color} ${s.bg}`}>
+             {React.cloneElement(s.icon as any, { size: 20, className: 'mb-2' })}
+             <p className="text-[9px] font-black text-slate-500 uppercase italic">{s.label}</p>
+             <h3 className="text-xl font-black text-white italic">{s.val}</h3>
+          </div>
+        ))}
       </div>
 
-      {/* Action Overlay */}
-      {isActionLoading && (
-        <div className="fixed inset-0 z-[300] bg-black/50 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-slate-900 p-8 rounded-[2rem] border border-white/10 flex flex-col items-center gap-4 shadow-2xl">
-            <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-            <span className="text-white font-black uppercase italic text-xs tracking-widest">Đang cập nhật Cloud...</span>
-          </div>
-        </div>
-      )}
-
-      {/* Tabs Menu */}
       <div className="flex flex-wrap gap-2">
-        {[
-          { id: 'users', label: 'Hội viên', icon: <Users size={14} /> },
-          { id: 'withdrawals', label: 'Rút tiền', icon: <CreditCard size={14} /> },
-          { id: 'ads', label: 'Quảng cáo', icon: <ImageIcon size={14} /> },
-          { id: 'giftcodes', label: 'Giftcodes', icon: <Ticket size={14} /> },
-          { id: 'announcements', label: 'Thông báo', icon: <Megaphone size={14} /> }
-        ].map(i => (
-          <button key={i.id} onClick={() => setTab(i.id as any)} className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black text-[10px] uppercase italic transition-all ${tab === i.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-900 text-slate-500 hover:bg-slate-800'}`}>
-            {i.icon} {i.label}
+        {['users', 'withdrawals', 'ads', 'giftcodes', 'announcements'].map(t => (
+          <button key={t} onClick={() => setTab(t as any)} className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase italic transition-all ${tab === t ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-900 text-slate-500 hover:bg-slate-800'}`}>
+            {t === 'users' ? 'Hội viên' : t === 'withdrawals' ? 'Rút tiền' : t === 'ads' ? 'Quảng cáo' : t === 'giftcodes' ? 'Giftcodes' : 'Thông báo'}
           </button>
         ))}
         <button onClick={refreshData} className="ml-auto p-3 bg-slate-900 text-slate-500 rounded-xl hover:text-white"><RefreshCcw size={14} /></button>
@@ -272,63 +133,29 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast 
                <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">DANH SÁCH HỘI VIÊN</h3>
                <div className="relative flex-1 max-w-xs">
                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
-                 <input type="text" placeholder="Tìm tên, email..." value={searchUser} onChange={e => setSearchUser(e.target.value)} className="w-full bg-slate-900 border border-white/5 rounded-xl pl-12 pr-4 py-3 text-xs text-white outline-none focus:border-blue-500" />
+                 <input type="text" placeholder="Tìm tên..." value={searchUser} onChange={e => setSearchUser(e.target.value)} className="w-full bg-slate-900 border border-white/5 rounded-xl pl-12 pr-4 py-3 text-xs text-white outline-none" />
                </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead className="text-[10px] font-black text-slate-500 uppercase italic border-b border-white/5">
-                  <tr>
-                    <th className="px-4 py-4">STT</th>
-                    <th className="px-4 py-4">Tên / Gmail</th>
-                    <th className="px-4 py-4">Hạng</th>
-                    <th className="px-4 py-4">Số dư</th>
-                    <th className="px-4 py-4 text-right">Thao tác</th>
-                  </tr>
-                </thead>
+                <thead><tr className="text-[10px] font-black text-slate-500 uppercase italic border-b border-white/5"><th className="px-4 py-4">Tên / Gmail</th><th className="px-4 py-4">Hạng</th><th className="px-4 py-4">Số dư</th><th className="px-4 py-4 text-right">Menu</th></tr></thead>
                 <tbody className="divide-y divide-white/5">
-                  {filteredUsers.map((u, i) => (
+                  {filteredUsers.map((u) => (
                     <tr key={u.id} className={`text-xs group hover:bg-white/[0.02] ${u.isBanned ? 'bg-red-500/5' : ''}`}>
-                      <td className="px-4 py-6 text-slate-600 font-black">#{i + 1}</td>
                       <td className="px-4 py-6">
-                         <div className="font-bold text-white uppercase flex items-center gap-2">
-                           {u.fullname} 
-                           {u.isBanned && <span className="text-red-500 text-[8px] border border-red-500/30 px-1 rounded animate-pulse">BỊ KHÓA</span>}
-                         </div>
+                         <div className="font-bold text-white uppercase flex items-center gap-2">{u.fullname} {u.isBanned && <span className="text-red-500 text-[8px] animate-pulse">BỊ KHÓA</span>}</div>
                          <div className="text-[9px] text-slate-500 mt-1">{u.email}</div>
                       </td>
-                      <td className="px-4 py-6">
-                        <span className={`px-3 py-1 rounded-lg font-black text-[9px] uppercase italic ${u.isVip ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-slate-800 text-slate-500'}`}>
-                          {u.vipTier.toUpperCase()}
-                        </span>
-                      </td>
+                      <td className="px-4 py-6"><span className={`px-2 py-1 rounded text-[9px] font-black ${u.isVip ? 'text-amber-500 bg-amber-500/10' : 'text-slate-500'}`}>{u.vipTier.toUpperCase()}</span></td>
                       <td className="px-4 py-6 font-black text-emerald-500">{u.balance.toLocaleString()} P</td>
                       <td className="px-4 py-6 text-right relative">
-                        <button 
-                          onClick={() => setActiveUserMenu(activeUserMenu === u.id ? null : u.id)}
-                          className={`p-2 rounded-lg transition-all border ${activeUserMenu === u.id ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-900 text-slate-400 hover:text-blue-500 border-white/5'}`}
-                        >
-                          <Settings size={16} />
-                        </button>
+                        <button onClick={() => setActiveUserMenu(activeUserMenu === u.id ? null : u.id)} className="p-2 rounded-lg bg-slate-900 text-slate-400 border border-white/5"><Settings size={14} /></button>
                         {activeUserMenu === u.id && (
-                          <div className="absolute right-4 top-16 z-[100] w-52 glass-card border border-white/10 rounded-2xl p-2 shadow-3xl animate-in fade-in slide-in-from-top-2">
-                             <button onClick={() => handleToggleBan(u)} className={`w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-left font-bold ${u.isBanned ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                {u.isBanned ? <Unlock size={14} /> : <Ban size={14} />} 
-                                <span>{u.isBanned ? 'Mở Khóa (Unban)' : 'Khóa Tài Khoản'}</span>
-                             </button>
-                             <button onClick={() => handleAdjustPoints(u.id, true)} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-left text-emerald-400 font-bold">
-                                <UserPlus size={14} /> <span>Cộng Điểm</span>
-                             </button>
-                             <button onClick={() => handleAdjustPoints(u.id, false)} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-left text-amber-500 font-bold">
-                                <UserMinus size={14} /> <span>Trừ Điểm</span>
-                             </button>
-                             <button onClick={() => { setActiveUserMenu(null); setSecurityModal({ isOpen: true, score: u.securityScore || 100 }); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-left text-blue-400 font-bold">
-                                <ShieldAlert size={14} /> <span>Kiểm Tra Sentinel</span>
-                             </button>
-                             <div className="h-px bg-white/5 my-2"></div>
-                             <button onClick={() => handleDeleteUser(u.id)} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-600 hover:text-white text-left text-slate-500 font-bold transition-all">
-                                <UserX size={14} /> <span>XÓA VĨNH VIỄN</span>
-                             </button>
+                          <div className="absolute right-4 top-14 z-[100] w-48 glass-card border border-white/10 rounded-2xl p-2 shadow-2xl animate-in fade-in slide-in-from-top-2">
+                             <button onClick={() => handleToggleBan(u)} className={`w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-left text-[10px] font-bold ${u.isBanned ? 'text-emerald-500' : 'text-rose-500'}`}>{u.isBanned ? <Unlock size={14} /> : <Ban size={14} />} {u.isBanned ? 'Mở Khóa' : 'Khóa Tài Khoản'}</button>
+                             <button onClick={() => handleAdjustPoints(u.id, true)} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-[10px] text-emerald-400 font-bold"><UserPlus size={14} /> Cộng Điểm</button>
+                             <button onClick={() => handleAdjustPoints(u.id, false)} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-[10px] text-amber-500 font-bold"><UserMinus size={14} /> Trừ Điểm</button>
+                             <button onClick={() => { setActiveUserMenu(null); setSecurityModal({ isOpen: true, score: u.securityScore || 100 }); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-[10px] text-blue-400 font-bold"><ShieldAlert size={14} /> Kiểm Tra Sentinel</button>
                           </div>
                         )}
                       </td>
@@ -345,94 +172,17 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast 
             <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">YÊU CẦU THANH TOÁN</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead className="text-[10px] font-black text-slate-500 uppercase italic border-b border-white/5">
-                  <tr>
-                    <th className="px-4 py-4">Mã Đơn</th>
-                    <th className="px-4 py-4">Hội Viên</th>
-                    <th className="px-4 py-4">Thanh Toán</th>
-                    <th className="px-4 py-4">Loại</th>
-                    <th className="px-4 py-4">Tiền</th>
-                    <th className="px-4 py-4">Trạng Thái</th>
-                    <th className="px-4 py-4 text-right">Duyệt</th>
-                  </tr>
-                </thead>
+                <thead><tr className="text-[10px] font-black text-slate-500 uppercase italic border-b border-white/5"><th className="px-4 py-4">Mã</th><th className="px-4 py-4">Hội Viên</th><th className="px-4 py-4">Tiền</th><th className="px-4 py-4">Duyệt</th></tr></thead>
                 <tbody className="divide-y divide-white/5">
                   {withdrawals.map(w => (
                     <tr key={w.id} className="text-xs hover:bg-white/[0.02]">
-                      <td className="px-4 py-6 font-black text-blue-500">#{w.id.slice(0, 8)}</td>
-                      <td className="px-4 py-6">
-                         <div className="font-bold text-white uppercase">{w.user_name}</div>
-                         <div className="text-[9px] text-slate-500 italic">{w.user_id}</div>
-                      </td>
-                      <td className="px-4 py-6 text-slate-400 italic text-[10px] max-w-[150px] truncate">{w.details}</td>
-                      <td className="px-4 py-6 font-black uppercase italic text-blue-400">{w.type}</td>
+                      <td className="px-4 py-6 font-black text-blue-500">#{w.id.slice(0, 6)}</td>
+                      <td className="px-4 py-6"><div className="font-bold text-white uppercase">{w.user_name}</div><div className="text-[9px] text-slate-500 truncate max-w-[120px]">{w.details}</div></td>
                       <td className="px-4 py-6 font-black text-white">{w.amount.toLocaleString()}đ</td>
-                      <td className="px-4 py-6">
-                         <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase italic ${w.status === 'pending' ? 'bg-amber-500/10 text-amber-500' : w.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-500'}`}>
-                           {w.status === 'pending' ? 'CHỜ' : w.status === 'completed' ? 'OK' : 'HỦY'}
-                         </span>
-                      </td>
                       <td className="px-4 py-6 text-right">
-                         {w.status === 'pending' && (
-                           <div className="flex justify-end gap-2">
-                              <button onClick={() => handleWithdrawAction(w.id, 'completed')} className="p-2 bg-emerald-600/10 text-emerald-400 rounded-xl hover:bg-emerald-600 hover:text-white transition-all"><CheckCircle2 size={16} /></button>
-                              <button onClick={() => handleWithdrawAction(w.id, 'rejected')} className="p-2 bg-red-600/10 text-red-500 rounded-xl hover:bg-red-600 hover:text-white transition-all"><XCircle size={16} /></button>
-                           </div>
-                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {tab === 'ads' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">QUẢN LÝ QUẢNG CÁO (ADMIN)</h3>
-              <button onClick={() => setShowAddAd(true)} className="px-8 py-4 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase italic tracking-widest shadow-xl flex items-center gap-3 active:scale-95 transition-all">
-                 <PlusCircle size={16} /> THÊM QUẢNG CÁO
-              </button>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="text-[10px] font-black text-slate-500 uppercase italic border-b border-white/5">
-                  <tr>
-                    <th className="px-4 py-4">Ảnh</th>
-                    <th className="px-4 py-4">Tên</th>
-                    <th className="px-4 py-4">Link</th>
-                    <th className="px-4 py-4">Trạng Thái</th>
-                    <th className="px-4 py-4 text-right">Hành Động</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {ads.map(ad => (
-                    <tr key={ad.id} className="text-xs group hover:bg-white/[0.02]">
-                      <td className="px-4 py-4">
-                        <img src={ad.imageUrl} className="w-16 h-10 object-cover rounded-lg border border-white/5" />
-                      </td>
-                      <td className="px-4 py-4 font-black text-white">{ad.title}</td>
-                      <td className="px-4 py-4 text-blue-400 text-[10px] italic truncate max-w-[150px]">{ad.targetUrl}</td>
-                      <td className="px-4 py-4">
-                        <span className={`px-2 py-1 rounded text-[9px] font-black italic ${ad.isActive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                          {ad.isActive ? 'ĐANG HIỆN' : 'ĐANG ẨN'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <div className="flex justify-end gap-2">
-                           <button 
-                             onClick={() => dbService.updateAdStatus(ad.id, !ad.isActive).then(refreshData)} 
-                             className={`p-2 rounded-lg transition-all ${ad.isActive ? 'bg-slate-800 text-slate-400 hover:text-white' : 'bg-emerald-600 text-white'}`}
-                             title={ad.isActive ? "Ẩn quảng cáo" : "Hiện quảng cáo"}
-                           >
-                              {ad.isActive ? <EyeOff size={16} /> : <Eye size={16} />}
-                           </button>
-                           <button onClick={() => dbService.deleteAd(ad.id).then(refreshData)} className="p-2 bg-red-600/10 text-red-500 rounded-lg hover:bg-red-600 hover:text-white">
-                              <Trash2 size={16} />
-                           </button>
-                        </div>
+                         {w.status === 'pending' ? (
+                           <div className="flex justify-end gap-2"><button onClick={() => handleWithdrawAction(w.id, 'completed')} className="p-2 bg-emerald-600/10 text-emerald-400 rounded-lg"><CheckCircle2 size={16} /></button><button onClick={() => handleWithdrawAction(w.id, 'rejected')} className="p-2 bg-red-600/10 text-red-500 rounded-lg"><XCircle size={16} /></button></div>
+                         ) : <span className="text-[9px] font-black uppercase text-slate-500">{w.status}</span>}
                       </td>
                     </tr>
                   ))}
@@ -444,65 +194,64 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast 
 
         {tab === 'giftcodes' && (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">QUẢN LÝ GIFTCODE</h3>
-              <button onClick={() => setShowAddGc(true)} className="px-8 py-4 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase italic tracking-widest shadow-xl flex items-center gap-3 active:scale-95 transition-all">
-                 <PlusCircle size={16} /> TẠO GIFTCODE
-              </button>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="text-[10px] font-black text-slate-500 uppercase italic border-b border-white/5">
-                  <tr>
-                    <th className="px-4 py-4">Mã Code</th>
-                    <th className="px-4 py-4">Thưởng</th>
-                    <th className="px-4 py-4">Đã Dùng</th>
-                    <th className="px-4 py-4">Tối Đa</th>
-                    <th className="px-4 py-4 text-right">Trạng Thái</th>
+            <div className="flex justify-between items-center"><h3 className="text-xl font-black text-white italic uppercase tracking-tighter">GIFTCODE</h3><button onClick={() => setShowAddGc(true)} className="px-6 py-3 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg shadow-emerald-600/20">+ TẠO MÃ</button></div>
+            <table className="w-full text-left">
+              <thead><tr className="text-[10px] font-black text-slate-500 uppercase border-b border-white/5"><th className="px-4 py-4">Code</th><th className="px-4 py-4">Thưởng</th><th className="px-4 py-4">Dùng/Max</th><th className="px-4 py-4 text-right">Trạng Thái</th></tr></thead>
+              <tbody>
+                {giftcodes.map(g => (
+                  <tr key={g.code} className="text-xs hover:bg-white/[0.02]">
+                    <td className="px-4 py-6 font-black text-rose-500 tracking-widest">{g.code}</td>
+                    <td className="px-4 py-6 font-black text-emerald-500">{g.amount.toLocaleString()} P</td>
+                    <td className="px-4 py-6 text-slate-400 font-bold">{(g.usedBy || []).length} / {g.maxUses}</td>
+                    <td className="px-4 py-6 text-right"><span className={`px-2 py-1 rounded text-[8px] font-black italic ${g.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-500'}`}>{g.isActive ? 'ONLINE' : 'HẾT HẠN'}</span></td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {giftcodes.map(g => (
-                    <tr key={g.code} className="text-xs group hover:bg-white/[0.02]">
-                      <td className="px-4 py-6 font-black text-rose-500 tracking-widest uppercase">{g.code}</td>
-                      <td className="px-4 py-6 font-black text-emerald-500">{g.amount.toLocaleString()} P</td>
-                      <td className="px-4 py-6 text-slate-400 font-black">{(g.usedBy || []).length}</td>
-                      <td className="px-4 py-6 text-slate-500 font-black">{g.maxUses}</td>
-                      <td className="px-4 py-6 text-right">
-                         <span className={`px-2 py-1 rounded text-[9px] font-black italic ${g.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-500'}`}>
-                           {g.isActive ? 'ONLINE' : 'HẾT HẠN'}
-                         </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
-        {/* ... (phần còn lại của Admin.tsx giữ nguyên) */}
+        {tab === 'ads' && (
+          <div className="space-y-6">
+             <div className="flex justify-between items-center"><h3 className="text-xl font-black text-white italic uppercase tracking-tighter">BANNER QUẢNG CÁO</h3><button onClick={() => setShowAddAd(true)} className="px-6 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg">+ THÊM QUẢNG CÁO</button></div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {ads.map(ad => (
+                  <div key={ad.id} className="glass-card p-4 rounded-3xl border border-white/5 flex gap-4 items-center">
+                     <img src={ad.imageUrl} className="w-20 h-14 object-cover rounded-xl" />
+                     <div className="flex-1 overflow-hidden"><h4 className="text-[11px] font-black text-white uppercase truncate">{ad.title}</h4><p className="text-[9px] text-slate-500 truncate">{ad.targetUrl}</p></div>
+                     <div className="flex gap-1"><button onClick={() => dbService.updateAdStatus(ad.id, !ad.isActive).then(refreshData)} className="p-2 text-slate-500">{ad.isActive ? <Eye size={16} /> : <EyeOff size={16} />}</button><button onClick={() => dbService.deleteAd(ad.id).then(refreshData)} className="p-2 text-red-500"><Trash2 size={16} /></button></div>
+                  </div>
+                ))}
+             </div>
+          </div>
+        )}
+
+        {tab === 'announcements' && (
+          <div className="space-y-6">
+             <div className="flex justify-between items-center"><h3 className="text-xl font-black text-white italic uppercase tracking-tighter">THÔNG BÁO HỆ THỐNG</h3><button onClick={() => setShowAddAnn(true)} className="px-6 py-3 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase italic shadow-lg">+ ĐĂNG TIN</button></div>
+             <div className="space-y-3">
+                {announcements.map(ann => (
+                  <div key={ann.id} className="p-5 glass-card rounded-[2rem] border border-white/5 flex justify-between items-center">
+                     <div><span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${ann.priority === 'high' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-400'}`}>{ann.priority}</span><h4 className="text-sm font-bold text-white uppercase mt-1">{ann.title}</h4></div>
+                     <div className="flex gap-2"><button onClick={() => dbService.updateAnnouncementStatus(ann.id, !ann.isActive).then(refreshData)} className="p-2 text-slate-500">{ann.isActive ? <Eye size={16} /> : <EyeOff size={16} />}</button><button onClick={() => dbService.deleteAnnouncement(ann.id).then(refreshData)} className="p-2 text-red-500"><Trash2 size={16} /></button></div>
+                  </div>
+                ))}
+             </div>
+          </div>
+        )}
       </div>
 
-      {/* MODAL TẠO GIFTCODE */}
       {showAddGc && (
-        <div className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
-           <div className="glass-card w-full max-w-md p-8 rounded-[3rem] border border-white/10 animate-in zoom-in-95">
-              <div className="flex justify-between items-center mb-8">
-                 <h4 className="text-xl font-black text-white italic uppercase">TẠO MÃ GIFTCODE</h4>
-                 <button onClick={() => setShowAddGc(false)} className="text-slate-500 hover:text-white"><XCircle size={24} /></button>
-              </div>
-              <div className="space-y-4">
-                 <input type="text" placeholder="MÃ CODE (VÍ DỤ: NEWYEAR)" value={newGc.code} onChange={e => setNewGc({...newGc, code: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-white text-xs font-bold outline-none focus:border-blue-500" />
-                 <input type="number" placeholder="SỐ ĐIỂM THƯỞNG (P)" value={newGc.amount} onChange={e => setNewGc({...newGc, amount: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-white text-xs font-bold outline-none focus:border-blue-500" />
-                 <input type="number" placeholder="SỐ LƯỢT DÙNG TỐI ĐA (Mặc định 100)" value={newGc.maxUses} onChange={e => setNewGc({...newGc, maxUses: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-white text-xs font-bold outline-none focus:border-blue-500" />
-                 <button onClick={handleCreateGiftcode} className="w-full py-4 bg-emerald-600 text-white font-black rounded-xl text-[10px] uppercase italic tracking-widest">KÍCH HOẠT MÃ</button>
-              </div>
-           </div>
-        </div>
+        <div className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"><div className="glass-card w-full max-w-md p-10 rounded-[4rem] border border-white/10 animate-in zoom-in-95 relative"><button onClick={() => setShowAddGc(false)} className="absolute top-8 right-8 text-slate-500"><X /></button><h4 className="text-xl font-black text-white italic uppercase mb-8">TẠO GIFTCODE</h4><div className="space-y-4"><input type="text" placeholder="MÃ CODE" value={newGc.code} onChange={e => setNewGc({...newGc, code: e.target.value.toUpperCase()})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold" /><input type="number" placeholder="ĐIỂM THƯỞNG" value={newGc.amount} onChange={e => setNewGc({...newGc, amount: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold" /><input type="number" placeholder="LƯỢT DÙNG (MAX)" value={newGc.maxUses} onChange={e => setNewGc({...newGc, maxUses: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold" /><button onClick={handleCreateGiftcode} className="w-full py-5 bg-emerald-600 text-white font-black rounded-2xl uppercase italic tracking-widest shadow-lg shadow-emerald-600/20">KÍCH HOẠT MÃ</button></div></div></div>
       )}
-      
-      {/* ... (các modal khác giữ nguyên) */}
+
+      {showAddAd && (
+        <div className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"><div className="glass-card w-full max-w-md p-10 rounded-[4rem] border border-white/10 relative"><button onClick={() => setShowAddAd(false)} className="absolute top-8 right-8 text-slate-500"><X /></button><h4 className="text-xl font-black text-white italic uppercase mb-8">THÊM QUẢNG CÁO</h4><div className="space-y-4"><input type="text" placeholder="TIÊU ĐỀ" value={newAd.title} onChange={e => setNewAd({...newAd, title: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold" /><input type="text" placeholder="URL ẢNH" value={newAd.imageUrl} onChange={e => setNewAd({...newAd, imageUrl: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold" /><input type="text" placeholder="LINK ĐÍCH" value={newAd.targetUrl} onChange={e => setNewAd({...newAd, targetUrl: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold" /><button onClick={() => { dbService.saveAd(newAd).then(() => { setShowAddAd(false); refreshData(); showToast('ADMIN', 'Đã thêm Ads!', 'success'); }); }} className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl uppercase italic shadow-lg">LƯU QUẢNG CÁO</button></div></div></div>
+      )}
+
+      {showAddAnn && (
+        <div className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"><div className="glass-card w-full max-w-md p-10 rounded-[4rem] border border-white/10 relative"><button onClick={() => setShowAddAnn(false)} className="absolute top-8 right-8 text-slate-500"><X /></button><h4 className="text-xl font-black text-white italic uppercase mb-8">ĐĂNG TIN MỚI</h4><div className="space-y-4"><input type="text" placeholder="TIÊU ĐỀ" value={newAnn.title} onChange={e => setNewAnn({...newAnn, title: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold" /><textarea placeholder="NỘI DUNG" value={newAnn.content} onChange={e => setNewAnn({...newAnn, content: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold" rows={3}></textarea><select value={newAnn.priority} onChange={e => setNewAnn({...newAnn, priority: e.target.value as any})} className="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-black uppercase italic text-xs outline-none"><option value="low">ƯU TIÊN: THẤP</option><option value="high">ƯU TIÊN: KHẨN CẤP</option></select><button onClick={() => { dbService.saveAnnouncement(newAnn).then(() => { setShowAddAnn(false); refreshData(); showToast('ADMIN', 'Đã đăng tin!', 'success'); }); }} className="w-full py-5 bg-blue-600 text-white font-black rounded-2xl uppercase italic shadow-lg">GỬI THÔNG BÁO</button></div></div></div>
+      )}
     </div>
   );
 }
