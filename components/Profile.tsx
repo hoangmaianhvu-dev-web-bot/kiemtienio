@@ -15,7 +15,11 @@ import {
   Crown,
   Zap,
   Star,
-  ChevronRight
+  ChevronRight,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldOff,
+  Activity
 } from 'lucide-react';
 
 interface Props {
@@ -34,22 +38,69 @@ const Profile: React.FC<Props> = ({ user, onUpdateUser }) => {
     setTimeout(() => setSaved(false), 3000);
   };
 
+  const score = user.securityScore ?? 100;
+  
+  const getSecurityStatus = () => {
+    if (score > 80) return { 
+      label: 'TIN CẬY TUYỆT ĐỐI', 
+      color: 'text-emerald-500', 
+      bg: 'bg-emerald-500/10', 
+      border: 'border-emerald-500/20',
+      icon: <ShieldCheck className="w-6 h-6" />,
+      desc: 'Tài khoản an toàn. Ưu tiên rút tiền siêu tốc.'
+    };
+    if (score >= 50) return { 
+      label: 'CẦN THEO DÕI', 
+      color: 'text-amber-500', 
+      bg: 'bg-amber-500/10', 
+      border: 'border-amber-500/20',
+      icon: <ShieldAlert className="w-6 h-6" />,
+      desc: 'Phát hiện hành vi nghi vấn nhẹ. Rút tiền sẽ được duyệt thủ công.'
+    };
+    return { 
+      label: 'NGUY HIỂM', 
+      color: 'text-red-500', 
+      bg: 'bg-red-500/10', 
+      border: 'border-red-500/20',
+      icon: <ShieldOff className="w-6 h-6" />,
+      desc: 'Rủi ro cao. Tài khoản bị hạn chế rút tiền.'
+    };
+  };
+
+  const security = getSecurityStatus();
+
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-20">
-      <div className="flex items-center gap-5">
-        <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-600/30 border-2 border-white/10">
-          <Fingerprint className="w-10 h-10 text-white" />
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-5">
+          <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-600/30 border-2 border-white/10">
+            <Fingerprint className="w-10 h-10 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase">{user.fullname}</h1>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">VIP MEMBER • #{user.id.toUpperCase()}</span>
+              {user.isAdmin && <span className="bg-amber-500/10 text-amber-500 text-[8px] font-black px-2 py-0.5 rounded-full border border-amber-500/20">ADMIN</span>}
+            </div>
+          </div>
         </div>
-        <div>
-          <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase">{user.fullname}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">VIP MEMBER • #{user.id.toUpperCase()}</span>
-            {user.isAdmin && <span className="bg-amber-500/10 text-amber-500 text-[8px] font-black px-2 py-0.5 rounded-full border border-amber-500/20">ADMIN</span>}
+
+        {/* Sentinel Score Mini Card */}
+        <div className={`glass-card px-6 py-4 rounded-2xl border ${security.border} ${security.bg} flex items-center gap-4`}>
+          <div className={`${security.color} animate-pulse`}>
+            {security.icon}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] font-black uppercase tracking-widest ${security.color}`}>{security.label}</span>
+              <span className="text-white font-black text-lg italic">{score} Pts</span>
+            </div>
+            <p className="text-[8px] text-slate-500 font-bold uppercase tracking-tighter">Nova Sentinel AI Analysis</p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="glass-card p-6 rounded-[2rem] flex items-center gap-4 hover:border-blue-500/30 transition-all">
           <div className="p-4 bg-blue-600/10 rounded-2xl text-blue-400">
             <Mail className="w-6 h-6" />
@@ -77,42 +128,54 @@ const Profile: React.FC<Props> = ({ user, onUpdateUser }) => {
             <p className="text-white font-bold text-xs uppercase italic">{user.isAdmin ? 'MASTER NOVA' : 'DIAMOND ELITE'}</p>
           </div>
         </div>
+        <div className={`glass-card p-6 rounded-[2rem] border transition-all flex items-center gap-4 ${security.bg} ${security.border}`}>
+          <div className={`p-4 rounded-2xl ${security.bg} ${security.color}`}>
+            <Activity className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Độ an toàn</p>
+            <p className={`font-black text-xs uppercase italic ${security.color}`}>{score}%</p>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           
-          {/* VIP Section */}
-          <div className="relative group overflow-hidden glass-card p-8 md:p-12 rounded-[3.5rem] border border-amber-500/20 bg-gradient-to-br from-amber-600/10 to-transparent shadow-[0_0_50px_rgba(245,158,11,0.1)]">
-             <div className="absolute top-0 right-0 p-10 opacity-10 pointer-events-none group-hover:rotate-12 transition-transform duration-1000">
-                <Crown className="w-40 h-40 text-amber-500" />
+          {/* Sentinel Detailed Status Card */}
+          <div className={`glass-card p-8 md:p-10 rounded-[3rem] border-2 ${security.border} relative overflow-hidden`}>
+             <div className="absolute -top-10 -right-10 opacity-5 rotate-12">
+               <Shield className="w-64 h-64 text-white" />
              </div>
-             <div className="relative z-10 space-y-6">
-                <div className="flex items-center gap-3">
-                   <div className="p-3 bg-amber-500 rounded-2xl shadow-lg">
-                      <Crown className="w-6 h-6 text-slate-950" />
-                   </div>
-                   <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">NOVA VIP MEMBERSHIP</h3>
-                </div>
-                <p className="text-slate-400 text-sm font-medium italic leading-relaxed max-w-lg">
-                   Nâng cấp tài khoản lên VIP để nhận những quyền lợi đặc biệt, tăng tốc độ kiếm điểm và ưu tiên xử lý rút tiền 24/7.
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                   <div className="flex items-center gap-3 p-4 bg-black/40 rounded-2xl border border-white/5">
-                      <Zap className="w-5 h-5 text-amber-500" />
-                      <span className="text-[10px] font-black text-slate-300 uppercase italic">Thưởng +20% P</span>
-                   </div>
-                   <div className="flex items-center gap-3 p-4 bg-black/40 rounded-2xl border border-white/5">
-                      <Star className="w-5 h-5 text-blue-500" />
-                      <span className="text-[10px] font-black text-slate-300 uppercase italic">Rút tiền siêu tốc</span>
+             <div className="relative z-10 flex flex-col md:flex-row gap-8 items-center">
+                <div className="relative">
+                   <svg className="w-32 h-32 transform -rotate-90">
+                      <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-white/5" />
+                      <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent" 
+                        strokeDasharray={364.4}
+                        strokeDashoffset={364.4 - (364.4 * score) / 100}
+                        className={`${security.color} transition-all duration-1000 ease-out`}
+                      />
+                   </svg>
+                   <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-3xl font-black text-white italic">{score}</span>
+                      <span className="text-[8px] font-black text-slate-500 uppercase">SCORE</span>
                    </div>
                 </div>
-                <button 
-                  onClick={() => alert("Chương trình VIP đang được cập nhật menu mới. Vui lòng quay lại sau!")}
-                  className="w-full md:w-fit px-12 py-5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-2xl uppercase italic tracking-widest text-[11px] flex items-center justify-center gap-3 shadow-2xl transition-all active:scale-95"
-                >
-                   XEM CÁC GÓI VIP <ChevronRight size={16} />
-                </button>
+                <div className="flex-1 space-y-4 text-center md:text-left">
+                   <div>
+                      <h3 className={`text-2xl font-black italic uppercase tracking-tighter ${security.color}`}>NOVA SENTINEL AUDIT</h3>
+                      <p className="text-white font-bold text-sm mt-1">{security.label}</p>
+                   </div>
+                   <p className="text-slate-400 text-xs font-medium italic leading-relaxed">
+                     {security.desc} Hệ thống tự động phân tích hành vi nạp, rút và làm nhiệm vụ để bảo vệ cộng đồng Diamond Nova.
+                   </p>
+                   <div className="flex flex-wrap gap-2 justify-center md:justify-start">
+                      <span className="px-3 py-1 bg-white/5 rounded-full text-[9px] font-black text-slate-500 border border-white/5 uppercase italic">IP Consistency: OK</span>
+                      <span className="px-3 py-1 bg-white/5 rounded-full text-[9px] font-black text-slate-500 border border-white/5 uppercase italic">Anti-Bot: Passed</span>
+                      <span className="px-3 py-1 bg-white/5 rounded-full text-[9px] font-black text-slate-500 border border-white/5 uppercase italic">Audit Sync: Verified</span>
+                   </div>
+                </div>
              </div>
           </div>
 
@@ -163,6 +226,19 @@ const Profile: React.FC<Props> = ({ user, onUpdateUser }) => {
                     </div>
                  </div>
               </div>
+           </div>
+
+           {/* VIP Section - Simplified in right col */}
+           <div className="relative group overflow-hidden glass-card p-8 rounded-[3rem] border border-amber-500/20 bg-gradient-to-br from-amber-600/10 to-transparent">
+             <Crown className="w-12 h-12 text-amber-500 mb-6" />
+             <h3 className="text-xl font-black text-white italic uppercase tracking-tighter mb-4">NOVA VIP</h3>
+             <p className="text-slate-400 text-[10px] font-medium italic mb-6">Tăng tốc độ kiếm điểm và ưu tiên xử lý rút tiền 24/7.</p>
+             <button 
+                onClick={() => alert("Chương trình VIP đang được cập nhật menu mới. Vui lòng quay lại sau!")}
+                className="w-full py-4 bg-amber-500 text-slate-950 font-black rounded-xl uppercase italic tracking-widest text-[10px]"
+             >
+                XEM GÓI VIP
+             </button>
            </div>
         </div>
       </div>
