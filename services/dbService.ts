@@ -46,6 +46,15 @@ const mapUser = (u: any): User => {
   };
 };
 
+const mapGiftcode = (g: any): Giftcode => ({
+  code: g.code,
+  amount: Number(g.amount || 0),
+  maxUses: Number(g.max_uses || 0),
+  usedBy: g.used_by || [],
+  createdAt: g.created_at,
+  isActive: Boolean(g.is_active)
+});
+
 export const dbService = {
   login: async (email: string, pass: string, rememberMe: boolean = false) => {
     const cleanEmail = email.trim().toLowerCase();
@@ -129,8 +138,6 @@ export const dbService = {
     const cleanEmail = email.trim().toLowerCase();
     const cleanCode = code.trim();
 
-    // Trong thực tế, mã OTP này được Bot Telegram lưu vào cột reset_code trong DB của user
-    // Ở đây ta giả lập việc kiểm tra mã và cập nhật mật khẩu
     const { data, error } = await supabase
       .from('users_data')
       .select('*')
@@ -173,13 +180,11 @@ export const dbService = {
     return { success: !error, message: error ? error.message : 'Cập nhật thành công.' };
   },
 
-  // Fix: Added missing linkPhone method for Profile component
   linkPhone: async (userId: string, phone: string) => {
     const { error } = await supabase.from('users_data').update({ phone_number: phone }).eq('id', userId);
     return { success: !error };
   },
 
-  // Fix: Added missing updatePassword method for Profile component
   updatePassword: async (userId: string, oldPass: string, newPass: string) => {
     const { data, error: fetchError } = await supabase
       .from('users_data')
@@ -209,7 +214,6 @@ export const dbService = {
     return { success: !error, message: error ? error.message : 'Cập nhật số dư thành công.' };
   },
 
-  // Fix: Added missing deleteUser method for Admin component
   deleteUser: async (userId: string) => {
     const { error } = await supabase.from('users_data').delete().eq('id', userId);
     return { success: !error, message: error ? error.message : 'Đã xóa hội viên vĩnh viễn.' };
@@ -222,7 +226,6 @@ export const dbService = {
     return (data || []).map(a => ({...a, imageUrl: a.image_url, targetUrl: a.target_url}));
   },
 
-  // Fix: Added missing saveAd method for Admin component
   saveAd: async (ad: any) => {
     const { error } = await supabase.from('ads').insert([{
       title: ad.title,
@@ -234,13 +237,11 @@ export const dbService = {
     return { error };
   },
 
-  // Fix: Added missing updateAdStatus method for Admin component
   updateAdStatus: async (id: string, isActive: boolean) => {
     const { error } = await supabase.from('ads').update({ is_active: isActive }).eq('id', id);
     return { error };
   },
 
-  // Fix: Added missing deleteAd method for Admin component
   deleteAd: async (id: string) => {
     const { error } = await supabase.from('ads').delete().eq('id', id);
     return { error };
@@ -253,7 +254,6 @@ export const dbService = {
     return data || [];
   },
 
-  // Fix: Added missing saveAnnouncement method for Admin component
   saveAnnouncement: async (ann: any) => {
     const { error } = await supabase.from('announcements').insert([{
       title: ann.title,
@@ -265,13 +265,11 @@ export const dbService = {
     return { error };
   },
 
-  // Fix: Added missing updateAnnouncementStatus method for Admin component
   updateAnnouncementStatus: async (id: string, isActive: boolean) => {
     const { error } = await supabase.from('announcements').update({ is_active: isActive }).eq('id', id);
     return { error };
   },
 
-  // Fix: Added missing deleteAnnouncement method for Admin component
   deleteAnnouncement: async (id: string) => {
     const { error } = await supabase.from('announcements').delete().eq('id', id);
     return { error };
@@ -332,10 +330,9 @@ export const dbService = {
 
   getGiftcodes: async () => {
     const { data } = await supabase.from('giftcodes').select('*').order('created_at', { ascending: false });
-    return data || [];
+    return (data || []).map(mapGiftcode);
   },
 
-  // Fix: Added missing addGiftcode method for Admin component
   addGiftcode: async (gc: any) => {
     const { error } = await supabase.from('giftcodes').insert([{
       code: gc.code,
@@ -349,19 +346,25 @@ export const dbService = {
   },
 
   claimGiftcode: async (userId: string, code: string) => {
-    const { data: gc, error: gcError } = await supabase.from('giftcodes').select('*').eq('code', code).eq('is_active', true).maybeSingle();
-    if (gcError || !gc) return { success: false, message: 'Mã không tồn tại hoặc đã hết hạn.' };
-    const usedBy = gc.used_by || [];
-    if (usedBy.includes(userId)) return { success: false, message: 'Bạn đã sử dụng mã này rồi.' };
-    if (usedBy.length >= gc.max_uses) return { success: false, message: 'Mã đã đạt giới hạn lượt sử dụng.' };
+    const { data: gcRaw, error: gcError } = await supabase.from('giftcodes').select('*').eq('code', code).eq('is_active', true).maybeSingle();
+    if (gcError || !gcRaw) return { success: false, message: 'Mã không tồn tại hoặc đã hết hạn.' };
+    
+    const gc = mapGiftcode(gcRaw);
+    if (gc.usedBy.includes(userId)) return { success: false, message: 'Bạn đã sử dụng mã này rồi.' };
+    if (gc.usedBy.length >= gc.maxUses) return { success: false, message: 'Mã đã đạt giới hạn lượt sử dụng.' };
+
     const { data: u } = await supabase.from('users_data').select('balance, total_giftcode_earned').eq('id', userId).single();
     if (!u) return { success: false, message: 'Người dùng không tồn tại.' };
+
     const { error: updateError } = await supabase.from('users_data').update({ 
       balance: u.balance + gc.amount,
       total_giftcode_earned: (u.total_giftcode_earned || 0) + gc.amount
     }).eq('id', userId);
+    
     if (updateError) return { success: false, message: updateError.message };
-    await supabase.from('giftcodes').update({ used_by: [...usedBy, userId] }).eq('code', code);
+
+    await supabase.from('giftcodes').update({ used_by: [...gc.usedBy, userId] }).eq('code', code);
+    
     return { success: true, amount: gc.amount, message: `Thành công! Bạn nhận được ${gc.amount} P.` };
   },
 

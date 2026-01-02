@@ -172,7 +172,7 @@ export default function Admin({ user, onUpdateUser }: AdminProps) {
     } else {
       alert("Đã đăng thông báo mới!");
       setShowAddAnn(false);
-      setNewAnn({ title: '', content: '', priority: 'low' });
+      setNewAnn({ title: '', content: '', priority: 'low' as 'low' | 'high' });
       refreshData();
     }
   };
@@ -428,7 +428,7 @@ export default function Admin({ user, onUpdateUser }: AdminProps) {
                       <td className="px-4 py-6 text-slate-400 font-black">{(g.usedBy || []).length}</td>
                       <td className="px-4 py-6 text-slate-500 font-black">{g.maxUses}</td>
                       <td className="px-4 py-6 text-right">
-                         <span className={`px-2 py-1 rounded text-[9px] font-black italic ${g.isActive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                         <span className={`px-2 py-1 rounded text-[9px] font-black italic ${g.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-500'}`}>
                            {g.isActive ? 'ONLINE' : 'HẾT HẠN'}
                          </span>
                       </td>
@@ -470,7 +470,7 @@ export default function Admin({ user, onUpdateUser }: AdminProps) {
                       <td className="px-4 py-4 font-black text-white uppercase">{ann.title}</td>
                       <td className="px-4 py-4 text-slate-500 italic truncate max-w-[200px]">{ann.content}</td>
                       <td className="px-4 py-4">
-                        <span className={`px-2 py-1 rounded text-[9px] font-black italic ${ann.isActive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                        <span className={`px-2 py-1 rounded text-[9px] font-black italic ${ann.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-500'}`}>
                           {ann.isActive ? 'ĐANG HIỆN' : 'ĐÃ ẨN'}
                         </span>
                       </td>
