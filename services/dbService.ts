@@ -3,19 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 import { User, Giftcode, WithdrawalRequest, AdminNotification, Announcement, AdBanner, ActivityLog } from '../types.ts';
 import { REFERRAL_REWARD, SECURE_AUTH_KEY, RATE_VND_TO_POINT } from '../constants.tsx';
 
-/**
- * Lấy thông tin cấu hình từ Environment Variables
- * Sử dụng process.env để đồng nhất với cách lấy API_KEY cho Gemini
- * Kiểm tra cả biến có prefix VITE_ và biến gốc để đảm bảo tương thích
- */
 // @ts-ignore
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const supabaseUrl = window.process.env.SUPABASE_URL || '';
 // @ts-ignore
-const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error("NOVA SYNC: Thiếu cấu hình Supabase URL hoặc Anon Key! Vui lòng kiểm tra lại cấu hình môi trường trong index.html hoặc Vercel.");
-}
+const supabaseKey = window.process.env.SUPABASE_ANON_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -31,6 +22,8 @@ const mapUser = (u: any): User => {
     tasksWeek: Number(u.tasks_week ?? 0),
     isBanned: Boolean(u.is_banned ?? false),
     isAdmin: Boolean(u.is_admin ?? false),
+    banReason: u.ban_reason || '',
+    securityScore: Number(u.security_score ?? 100),
     joinDate: u.join_date,
     lastTaskDate: u.last_task_date,
     lastLogin: u.last_login,
@@ -42,15 +35,59 @@ const mapUser = (u: any): User => {
 };
 
 const handleDbError = (err: any, fallback: any = []) => {
-  if (err?.status === 404 || err?.code === 'PGRST116') {
-    return fallback;
-  }
-  const errorMsg = err?.message || JSON.stringify(err);
-  console.error("Database detail:", errorMsg);
+  if (err?.status === 404 || err?.code === 'PGRST116') return fallback;
+  console.error("Database detail:", err?.message || JSON.stringify(err));
   return fallback;
 };
 
 export const dbService = {
+  /**
+   * NOVA SENTINEL: Kiểm tra tính toàn vẹn của số dư
+   * Giúp phân biệt điểm hợp lệ và điểm Bug
+   */
+  auditUserIntegrity: async (userId: string): Promise<{ isValid: boolean, reason?: string }> => {
+    const { data: u, error } = await supabase.from('users_data').select('*').eq('id', userId).maybeSingle();
+    if (error || !u) return { isValid: false, reason: "Không tìm thấy dữ liệu hội viên" };
+
+    // Lấy tổng số tiền đã rút thành công hoặc đang chờ
+    const { data: withdrawals } = await supabase.from('withdrawals').select('amount').eq('user_id', userId).neq('status', 'rejected');
+    const totalWithdrawnPoints = (withdrawals || []).reduce((sum, w) => sum + (Number(w.amount) * RATE_VND_TO_POINT), 0);
+
+    // Tính toán số điểm "đáng lẽ phải có" dựa trên lịch sử
+    const pointsFromTasks = Number(u.total_earned || 0); // Đây là tổng điểm từ nhiệm vụ đã cộng qua RPC
+    const pointsFromGiftcodes = Number(u.total_giftcode_earned || 0);
+    const pointsFromRefs = Number(u.referral_count || 0) * REFERRAL_REWARD;
+
+    const expectedTotal = pointsFromTasks + pointsFromGiftcodes + pointsFromRefs;
+    const actualTotal = Number(u.balance || 0) + totalWithdrawnPoints;
+
+    // Cho phép sai số nhỏ (ví dụ 100 điểm) để tránh các vấn đề làm tròn
+    if (actualTotal > expectedTotal + 100) {
+      return { 
+        isValid: false, 
+        reason: `Mất cân đối: Thực tế (${actualTotal}) > Hợp lệ (${expectedTotal}). Chênh lệch: ${actualTotal - expectedTotal} P` 
+      };
+    }
+
+    return { isValid: true };
+  },
+
+  autoBanUser: async (userId: string, reason: string) => {
+    await supabase.from('users_data').update({ 
+      is_banned: true, 
+      ban_reason: `SENTINEL_AUTO: ${reason}` 
+    }).eq('id', userId);
+    
+    await dbService.logActivity(userId, 'System', 'AUTO_BAN', reason);
+    await dbService.addNotification({
+      type: 'security',
+      title: 'SENTINEL: PHÁT HIỆN GIAN LẬN',
+      content: `User ${userId} bị khóa tự động. Lý do: ${reason}`,
+      userId: 'all',
+      userName: 'Nova Sentinel'
+    });
+  },
+
   signup: async (email: string, pass: string, fullname: string, refId?: string) => {
     try {
       const { data: existing } = await supabase.from('users_data').select('id').eq('email', email).maybeSingle();
@@ -63,7 +100,8 @@ export const dbService = {
       const newUser = {
         id: userId, admin_id: userId, email, password_hash: btoa(pass), fullname: fullname.toUpperCase(),
         balance: 0, total_earned: 0, tasks_today: 0, tasks_week: 0, 
-        is_admin: isFirst, is_banned: false,
+        is_admin: isFirst, is_banned: false, security_score: 100,
+        total_giftcode_earned: 0,
         join_date: new Date().toISOString(), referred_by: refId || null, bank_info: '', id_game: '', task_counts: {}
       };
 
@@ -99,30 +137,202 @@ export const dbService = {
 
   logout: () => localStorage.removeItem('nova_session_id'),
 
-  getTotalUserCount: async () => {
-    const { count } = await supabase.from('users_data').select('id', { count: 'exact', head: true });
-    return count || 0;
-  },
-
   updateUser: async (id: string, updates: any) => {
     const dbUpdates: any = {};
     if (updates.isBanned !== undefined) dbUpdates.is_banned = updates.isBanned;
+    if (updates.banReason !== undefined) dbUpdates.ban_reason = updates.banReason;
     if (updates.taskCounts !== undefined) dbUpdates.task_counts = updates.taskCounts;
     if (updates.tasksToday !== undefined) dbUpdates.tasks_today = updates.tasksToday;
     if (updates.tasksWeek !== undefined) dbUpdates.tasks_week = updates.tasksWeek;
     if (updates.lastTaskDate !== undefined) dbUpdates.last_task_date = updates.lastTaskDate;
-    if (updates.bankInfo !== undefined) dbUpdates.bank_info = updates.bankInfo;
-    if (updates.idGame !== undefined) dbUpdates.id_game = updates.idGame;
+    if (updates.bankInfo !== undefined) dbUpdates.bank_info = updates.bank_info;
+    if (updates.idGame !== undefined) dbUpdates.id_game = updates.id_game;
     if (updates.balance !== undefined) dbUpdates.balance = updates.balance;
     return await supabase.from('users_data').update(dbUpdates).eq('id', id);
   },
 
-  addPointsSecurely: async (id: string) => {
+  addPointsSecurely: async (id: string, timeElapsed: number) => {
+    if (timeElapsed < 15) {
+      await dbService.autoBanUser(id, `Speed-Cheat: Vượt link quá nhanh (${timeElapsed}s)`);
+      return { error: 'SENTINEL_SECURITY_VIOLATION' };
+    }
+
     const { error } = await supabase.rpc('secure_add_points', { 
       target_id: id, 
       auth_key: SECURE_AUTH_KEY 
     });
     return { error };
+  },
+
+  claimGiftcode: async (userId: string, code: string): Promise<{ success: boolean, message: string, amount?: number }> => {
+    try {
+      const { data: gc, error } = await supabase.from('giftcodes').select('*').eq('code', code.toUpperCase()).maybeSingle();
+      if (error || !gc || !gc.is_active) return { success: false, message: 'Mã không tồn tại hoặc đã hết hạn.' };
+
+      const usedBy = gc.used_by || [];
+      if (usedBy.includes(userId)) return { success: false, message: 'Bạn đã sử dụng mã này rồi.' };
+      if (usedBy.length >= gc.max_uses) return { success: false, message: 'Mã đã hết lượt nhập.' };
+
+      // Cập nhật Giftcode và cộng điểm User theo cơ chế Audit
+      const newUsedBy = [...usedBy, userId];
+      const { error: updGcErr } = await supabase.from('giftcodes').update({ used_by: newUsedBy }).eq('code', gc.code);
+      if (updGcErr) throw updGcErr;
+
+      // Cộng điểm và ghi nhận vào total_giftcode_earned để Audit
+      const { data: user } = await supabase.from('users_data').select('balance, total_giftcode_earned').eq('id', userId).maybeSingle();
+      if (user) {
+        await supabase.from('users_data').update({
+          balance: Number(user.balance || 0) + Number(gc.amount),
+          total_giftcode_earned: Number(user.total_giftcode_earned || 0) + Number(gc.amount)
+        }).eq('id', userId);
+        
+        await dbService.logActivity(userId, 'System', 'GIFTCODE', `Nhập mã ${code} +${gc.amount} P`);
+      }
+
+      return { success: true, message: `Thành công! +${gc.amount} P`, amount: gc.amount };
+    } catch (e: any) {
+      return { success: false, message: 'Lỗi xử lý: ' + e.message };
+    }
+  },
+
+  getAllUsers: async () => {
+    const { data, error } = await supabase.from('users_data').select('*').order('balance', { ascending: false });
+    return error ? handleDbError(error) : (data || []).map(mapUser);
+  },
+
+  getWithdrawals: async (userId?: string) => {
+    let q = supabase.from('withdrawals').select('*').order('created_at', { ascending: false });
+    if (userId) q = q.eq('user_id', userId);
+    const { data, error } = await q;
+    return error ? handleDbError(error) : (data || []).map(w => ({ ...w, userId: w.user_id, userName: w.user_name, createdAt: w.created_at }));
+  },
+
+  addWithdrawal: async (req: any) => {
+    // NOVA SENTINEL: Kiểm tra Audit Integrity trước khi rút
+    const audit = await dbService.auditUserIntegrity(req.userId);
+    if (!audit.isValid) {
+      await dbService.autoBanUser(req.userId, `Audit-Failure: ${audit.reason}`);
+      return { error: 'SECURITY_AUDIT_FAILED' };
+    }
+
+    const { data: user } = await supabase.from('users_data').select('balance').eq('id', req.userId).maybeSingle();
+    const pointsNeeded = Number(req.amount) * RATE_VND_TO_POINT;
+    
+    if (!user || user.balance < pointsNeeded) {
+      return { error: 'INSUFFICIENT_BALANCE' };
+    }
+
+    return await supabase.from('withdrawals').insert([{
+      user_id: req.userId, user_name: req.userName, amount: req.amount, type: req.type, status: 'pending', details: req.details
+    }]);
+  },
+
+  updateWithdrawalStatus: async (id: string, status: 'completed' | 'rejected') => {
+    const { data: withdrawal, error: fetchErr } = await supabase.from('withdrawals').select('*').eq('id', id).maybeSingle();
+    if (fetchErr || !withdrawal) return { error: fetchErr || 'Withdrawal not found' };
+
+    if (status === 'rejected' && withdrawal.status === 'pending') {
+      const refundPoints = Number(withdrawal.amount) * RATE_VND_TO_POINT;
+      const { data: user } = await supabase.from('users_data').select('balance').eq('id', withdrawal.user_id).maybeSingle();
+
+      if (user) {
+        const newBalance = Number(user.balance || 0) + refundPoints;
+        await supabase.from('users_data').update({ balance: newBalance }).eq('id', withdrawal.user_id);
+        await dbService.logActivity(withdrawal.user_id, withdrawal.user_name, 'Hoàn điểm (Refund)', `+${refundPoints} P`);
+      }
+    }
+    return await supabase.from('withdrawals').update({ status }).eq('id', id);
+  },
+
+  getNotifications: async (userId?: string) => {
+    let q = supabase.from('notifications').select('*').order('created_at', { ascending: false });
+    if (userId) q = q.or(`user_id.eq.${userId},user_id.eq.all`);
+    const { data, error } = await q;
+    return error ? handleDbError(error) : (data || []).map(n => ({ ...n, userId: n.user_id, createdAt: n.created_at }));
+  },
+
+  addNotification: async (n: any) => {
+    return await supabase.from('notifications').insert([{
+      type: n.type, title: n.title, content: n.content, user_id: n.userId || 'all', user_name: n.userName || 'System'
+    }]);
+  },
+
+  getAnnouncements: async (all = false) => {
+    let q = supabase.from('announcements').select('*');
+    if (!all) q = q.eq('is_active', true);
+    const { data, error } = await q.order('created_at', { ascending: false });
+    return error ? handleDbError(error) : (data || []).map(a => ({ ...a, createdAt: a.created_at, isActive: a.is_active }));
+  },
+
+  saveAnnouncement: async (ann: any) => {
+    return await supabase.from('announcements').insert([{ title: ann.title, content: ann.content, priority: ann.priority || 'low', is_active: true }]);
+  },
+
+  updateAnnouncementStatus: async (id: string, isActive: boolean) => {
+    return await supabase.from('announcements').update({ is_active: isActive }).eq('id', id);
+  },
+
+  deleteAnnouncement: async (id: string) => {
+    return await supabase.from('announcements').delete().eq('id', id);
+  },
+
+  getAds: async (all = false) => {
+    let q = supabase.from('ads').select('*');
+    if (!all) q = q.eq('is_active', true);
+    const { data, error } = await q.order('created_at', { ascending: false });
+    return error ? handleDbError(error) : (data || []).map(ad => ({ ...ad, imageUrl: ad.image_url, targetUrl: ad.target_url, isActive: ad.is_active }));
+  },
+
+  saveAd: async (ad: any) => {
+    return await supabase.from('ads').insert([{ title: ad.title, image_url: ad.imageUrl, target_url: ad.targetUrl, is_active: true }]);
+  },
+
+  updateAdStatus: async (id: string, isActive: boolean) => {
+    return await supabase.from('ads').update({ is_active: isActive }).eq('id', id);
+  },
+
+  deleteAd: async (id: string) => {
+    return await supabase.from('ads').delete().eq('id', id);
+  },
+
+  getGiftcodes: async (all = false) => {
+    let q = supabase.from('giftcodes').select('*');
+    if (!all) q = q.eq('is_active', true);
+    const { data, error } = await q.order('created_at', { ascending: false });
+    return error ? handleDbError(error) : (data || []).map(g => ({ ...g, maxUses: g.max_uses, usedBy: g.used_by || [], isActive: g.is_active }));
+  },
+
+  addGiftcode: async (gc: any) => {
+    return await supabase.from('giftcodes').insert([{ code: gc.code.toUpperCase(), amount: gc.amount, max_uses: gc.maxUses, used_by: [], is_active: true }]);
+  },
+
+  updateGiftcodeStatus: async (code: string, isActive: boolean) => {
+    return await supabase.from('giftcodes').update({ is_active: isActive }).eq('code', code);
+  },
+
+  deleteGiftcode: async (code: string) => {
+    return await supabase.from('giftcodes').delete().eq('code', code);
+  },
+
+  logActivity: async (uId: string, uName: string, action: string, details: string) => {
+    await supabase.from('activity_logs').insert([{ user_id: uId, user_name: uName, action, details }]);
+  },
+
+  getActivityLogs: async () => {
+    const { data, error } = await supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(50);
+    return error ? handleDbError(error) : (data || []).map(l => ({ 
+      id: l.id,
+      userId: l.user_id,
+      userName: l.user_name,
+      action: l.action,
+      details: l.details,
+      createdAt: l.created_at 
+    }));
+  },
+
+  getTotalUserCount: async () => {
+    const { count, error } = await supabase.from('users_data').select('*', { count: 'exact', head: true });
+    return error ? 0 : (count || 0);
   },
 
   requestResetCode: async (email: string, telegramUsername: string) => {
@@ -149,170 +359,5 @@ export const dbService = {
       return { success: true, message: 'Đổi mật khẩu thành công.' };
     }
     return { success: false, message: 'Mã xác minh không chính xác.' };
-  },
-
-  getAllUsers: async () => {
-    const { data, error } = await supabase.from('users_data').select('*').order('balance', { ascending: false });
-    return error ? handleDbError(error) : (data || []).map(mapUser);
-  },
-
-  getWithdrawals: async (userId?: string) => {
-    let q = supabase.from('withdrawals').select('*').order('created_at', { ascending: false });
-    if (userId) q = q.eq('user_id', userId);
-    const { data, error } = await q;
-    return error ? handleDbError(error) : (data || []).map(w => ({ ...w, userId: w.user_id, userName: w.user_name, createdAt: w.created_at }));
-  },
-
-  addWithdrawal: async (req: any) => {
-    return await supabase.from('withdrawals').insert([{
-      user_id: req.userId, user_name: req.userName, amount: req.amount, type: req.type, status: 'pending', details: req.details
-    }]);
-  },
-
-  updateWithdrawalStatus: async (id: string, status: 'completed' | 'rejected') => {
-    // Fetch the withdrawal record first to check current status and get amount/user_id
-    const { data: withdrawal, error: fetchErr } = await supabase
-      .from('withdrawals')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-
-    if (fetchErr || !withdrawal) return { error: fetchErr || 'Withdrawal not found' };
-
-    // If we are rejecting a PENDING withdrawal, refund the points
-    if (status === 'rejected' && withdrawal.status === 'pending') {
-      const refundPoints = Number(withdrawal.amount) * RATE_VND_TO_POINT;
-      
-      // Get the user's current balance
-      const { data: user, error: userErr } = await supabase
-        .from('users_data')
-        .select('balance')
-        .eq('id', withdrawal.user_id)
-        .maybeSingle();
-
-      if (!userErr && user) {
-        const newBalance = Number(user.balance || 0) + refundPoints;
-        await supabase
-          .from('users_data')
-          .update({ balance: newBalance })
-          .eq('id', withdrawal.user_id);
-          
-        await dbService.logActivity(
-          withdrawal.user_id, 
-          withdrawal.user_name, 
-          'Hoàn điểm (Refund)', 
-          `Đã hoàn +${refundPoints} P do lệnh rút bị từ chối.`
-        );
-      }
-    }
-
-    return await supabase.from('withdrawals').update({ status }).eq('id', id);
-  },
-
-  getNotifications: async (userId?: string) => {
-    let q = supabase.from('notifications').select('*').order('created_at', { ascending: false });
-    if (userId) q = q.or(`user_id.eq.${userId},user_id.eq.all`);
-    const { data, error } = await q;
-    return error ? handleDbError(error) : (data || []).map(n => ({ ...n, userId: n.user_id, createdAt: n.created_at }));
-  },
-
-  addNotification: async (n: any) => {
-    return await supabase.from('notifications').insert([{
-      type: n.type, title: n.title, content: n.content, user_id: n.userId || 'all', user_name: n.userName || 'System'
-    }]);
-  },
-
-  getAnnouncements: async (all = false) => {
-    try {
-      let q = supabase.from('announcements').select('*');
-      if (!all) q = q.eq('is_active', true);
-      const { data, error } = await q.order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []).map(a => ({ ...a, createdAt: a.created_at, isActive: a.is_active }));
-    } catch (e) {
-      const { data } = await supabase.from('announcements').select('*');
-      return (data || []).map(a => ({ ...a, createdAt: a.created_at, isActive: a.is_active }));
-    }
-  },
-
-  saveAnnouncement: async (ann: any) => {
-    return await supabase.from('announcements').insert([{ 
-      title: ann.title, content: ann.content, priority: ann.priority || 'low', is_active: true
-    }]);
-  },
-
-  updateAnnouncementStatus: async (id: string, isActive: boolean) => {
-    return await supabase.from('announcements').update({ is_active: isActive }).eq('id', id);
-  },
-
-  deleteAnnouncement: async (id: string) => {
-    return await supabase.from('announcements').delete().eq('id', id);
-  },
-
-  getAds: async (all = false) => {
-    try {
-      let q = supabase.from('ads').select('*');
-      if (!all) q = q.eq('is_active', true);
-      const { data, error } = await q.order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []).map(ad => ({ ...ad, imageUrl: ad.image_url, targetUrl: ad.target_url, isActive: ad.is_active }));
-    } catch (e) {
-      const { data } = await supabase.from('ads').select('*');
-      return (data || []).map(ad => ({ ...ad, imageUrl: ad.image_url, target_url: ad.target_url, isActive: ad.is_active }));
-    }
-  },
-
-  saveAd: async (ad: any) => {
-    return await supabase.from('ads').insert([{ title: ad.title, image_url: ad.imageUrl, target_url: ad.targetUrl, is_active: true }]);
-  },
-
-  updateAdStatus: async (id: string, isActive: boolean) => {
-    return await supabase.from('ads').update({ is_active: isActive }).eq('id', id);
-  },
-
-  deleteAd: async (id: string) => {
-    return await supabase.from('ads').delete().eq('id', id);
-  },
-
-  getGiftcodes: async (all = false) => {
-    try {
-      let q = supabase.from('giftcodes').select('*');
-      if (!all) q = q.eq('is_active', true);
-      const { data, error } = await q.order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []).map(g => ({ ...g, maxUses: g.max_uses, usedBy: g.used_by || [], isActive: g.is_active }));
-    } catch (e) {
-      const { data } = await supabase.from('giftcodes').select('*');
-      return (data || []).map(g => ({ ...g, maxUses: g.max_uses, usedBy: g.used_by || [], isActive: g.is_active }));
-    }
-  },
-
-  addGiftcode: async (gc: any) => {
-    return await supabase.from('giftcodes').insert([{ 
-      code: gc.code.toUpperCase(), amount: gc.amount, max_uses: gc.maxUses, used_by: [], is_active: true
-    }]);
-  },
-
-  updateGiftcodeStatus: async (code: string, isActive: boolean) => {
-    return await supabase.from('giftcodes').update({ is_active: isActive }).eq('code', code);
-  },
-
-  deleteGiftcode: async (code: string) => {
-    return await supabase.from('giftcodes').delete().eq('code', code);
-  },
-
-  logActivity: async (uId: string, uName: string, action: string, details: string) => {
-    await supabase.from('activity_logs').insert([{ user_id: uId, user_name: uName, action, details }]);
-  },
-
-  getActivityLogs: async () => {
-    try {
-      const { data, error } = await supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(50);
-      if (error) throw error;
-      return (data || []).map(l => ({ ...l, createdAt: l.created_at }));
-    } catch (e) {
-      const { data } = await supabase.from('activity_logs').select('*').limit(50);
-      return (data || []).map(l => ({ ...l, createdAt: l.created_at }));
-    }
   }
 };

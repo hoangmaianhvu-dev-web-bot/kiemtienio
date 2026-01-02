@@ -16,7 +16,8 @@ import {
   Activity, 
   MousePointer2,
   LayoutGrid,
-  RefreshCw
+  RefreshCw,
+  ShieldBan
 } from 'lucide-react';
 
 interface Props {
@@ -57,6 +58,7 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
     const saved = localStorage.getItem('nova_pending_task');
     if (saved) {
       const parsed = JSON.parse(saved);
+      // Giới hạn 30 phút cho một nhiệm vụ
       if (Date.now() - parsed.timestamp < 1800 * 1000) {
         setActiveTask(parsed);
       } else {
@@ -96,23 +98,31 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
 
     setTimeout(async () => {
       const input = inputToken.trim().toUpperCase();
-      if (input === activeTask.token || input === activeTask.token.replace('NOVA-', '')) {
-        // Thực hiện cộng điểm bảo mật qua RPC
-        const { error } = await dbService.addPointsSecurely(user.id);
+      const cleanToken = activeTask.token.replace('NOVA-', '');
+      
+      if (input === activeTask.token || input === cleanToken) {
+        // Nova Sentinel: Tính thời gian thực hiện
+        const timeElapsed = Math.floor((Date.now() - activeTask.timestamp) / 1000);
+        
+        // Thực hiện cộng điểm bảo mật qua RPC + Sentinel Check
+        const { error } = await dbService.addPointsSecurely(user.id, timeElapsed);
         
         if (error) {
-           console.error("Secure Add Points Failed:", error);
+           console.error("Sentinel Blocked:", error);
            setStatus('error');
+           if (error === 'SENTINEL_SECURITY_VIOLATION') {
+             alert("SENTINEL: Phát hiện gian lận tốc độ! Tài khoản đã bị khóa.");
+             window.location.reload();
+           }
            return;
         }
 
         const newTaskCounts = { ...user.taskCounts };
         newTaskCounts[activeTask.gateName] = (newTaskCounts[activeTask.gateName] || 0) + 1;
 
-        // Cập nhật các thông tin không nhạy cảm khác (counts, dates)
         const updatedUser = {
           ...user,
-          balance: user.balance + activeTask.points, // Cập nhật local để UI mượt, DB đã được RPC xử lý
+          balance: user.balance + activeTask.points,
           totalEarned: (user.totalEarned || 0) + activeTask.points,
           tasksToday: (user.tasksToday || 0) + 1,
           taskCounts: newTaskCounts,
@@ -120,7 +130,7 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
         };
 
         onUpdateUser(updatedUser);
-        await dbService.logActivity(user.id, user.fullname, 'Hoàn thành nhiệm vụ', `+${activeTask.points} P từ ${activeTask.gateName}`);
+        await dbService.logActivity(user.id, user.fullname, 'Hoàn thành nhiệm vụ', `+${activeTask.points} P (${timeElapsed}s)`);
         
         setStatus('success');
         localStorage.removeItem('nova_pending_task');
@@ -151,6 +161,13 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
       <div className="relative pt-4 max-w-2xl mx-auto">
         <div className="glass-card p-6 md:p-10 rounded-[2.5rem] border border-cyan-500/20 bg-gradient-to-b from-blue-900/20 to-black/95 backdrop-blur-3xl shadow-2xl overflow-hidden text-center relative">
              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent"></div>
+             
+             {/* Sentinel Status Badge */}
+             <div className="absolute top-4 right-8 flex items-center gap-2 px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-full">
+                <ShieldBan className="w-3 h-3 text-cyan-400" />
+                <span className="text-[8px] font-black text-cyan-400 uppercase tracking-widest">Sentinel Active</span>
+             </div>
+
              <div className="w-16 h-16 bg-cyan-500/10 rounded-2xl flex items-center justify-center border border-cyan-500/30 mx-auto mb-6 security-pulse">
                 {status === 'loading' ? <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" /> : status === 'success' ? <CheckCircle2 className="w-8 h-8 text-emerald-400" /> : <LockKeyhole className="w-8 h-8 text-cyan-400" />}
              </div>

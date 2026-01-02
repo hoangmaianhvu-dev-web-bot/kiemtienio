@@ -40,6 +40,8 @@ export interface User {
   lastLogin?: string;
   isBanned: boolean;
   isAdmin: boolean;
+  banReason?: string;
+  securityScore?: number;
   referralCount?: number;
   referralBonus?: number;
   referredBy?: string;
@@ -81,7 +83,7 @@ export interface Announcement {
 
 export interface AdminNotification {
   id: string;
-  type: 'withdrawal' | 'feedback' | 'system' | 'auth' | 'referral';
+  type: 'withdrawal' | 'feedback' | 'system' | 'auth' | 'referral' | 'security';
   title: string;
   content: string;
   userId: string;

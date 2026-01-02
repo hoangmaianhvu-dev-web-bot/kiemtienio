@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { User } from '../types.ts';
-import { dbService, supabase } from '../services/dbService.ts';
+import { dbService } from '../services/dbService.ts';
 import { 
   Ticket, 
   Sparkles, 
@@ -25,44 +25,29 @@ const Giftcode: React.FC<Props> = ({ user, onUpdateUser }) => {
     setStatus('loading');
     
     try {
-      // Lấy Giftcode mới nhất từ DB để kiểm tra lượt nhập thật
-      const { data: gc, error } = await supabase.from('giftcodes').select('*').eq('code', code.trim().toUpperCase()).maybeSingle();
+      // Chuyển toàn bộ việc kiểm tra và cộng điểm vào dbService (Server-side check)
+      const res = await dbService.claimGiftcode(user.id, code.trim());
 
-      if (error || !gc) {
-        setStatus('error');
-        setMsg('Mã Giftcode không tồn tại hoặc đã hết hạn.');
-        return;
-      }
-
-      const usedBy = gc.used_by || [];
-      if (usedBy.includes(user.id)) {
-        setStatus('error');
-        setMsg('Bạn đã sử dụng mã này rồi.');
-      } else if (usedBy.length >= gc.max_uses) {
-        setStatus('error');
-        setMsg('Mã này đã đạt giới hạn lượt nhập!');
-      } else {
-        // Cập nhật lượt nhập vào Supabase
-        const newUsedBy = [...usedBy, user.id];
-        const { error: updErr } = await supabase.from('giftcodes').update({ used_by: newUsedBy }).eq('code', gc.code);
-        
-        if (updErr) throw updErr;
-
-        // Cộng điểm cho User
-        const updatedUser = { ...user, balance: user.balance + Number(gc.amount) };
+      if (res.success) {
+        // Cập nhật state User cục bộ sau khi DB đã cộng điểm thành công
+        const updatedUser = { 
+          ...user, 
+          balance: user.balance + Number(res.amount || 0) 
+        };
         onUpdateUser(updatedUser);
         
         setStatus('success');
-        setMsg(`Chúc mừng! Bạn nhận được ${Number(gc.amount).toLocaleString()} điểm.`);
+        setMsg(res.message);
         setCode('');
+      } else {
+        setStatus('error');
+        setMsg(res.message);
       }
     } catch (e) {
       console.error(e);
       setStatus('error');
       setMsg('Lỗi hệ thống. Vui lòng thử lại sau.');
     } finally {
-      // Fix: Functional update used to check the actual state at the time the timeout fires, 
-      // resolving the TypeScript narrowing error in the closure.
       setTimeout(() => { setStatus(prev => prev !== 'loading' ? 'idle' : prev); }, 5000);
     }
   };
