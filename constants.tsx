@@ -29,9 +29,9 @@ export const WITHDRAW_MILESTONES = [5000, 10000, 20000, 50000, 100000, 200000, 5
 export const BLOG_DESTINATION = "https://avudev-verifi.blogspot.com/";
 
 export const SOCIAL_LINKS = {
-  YOUTUBE: "https://www.youtube.com/@diamondnova",
-  TELEGRAM: "https://t.me/diamondnova_hub",
-  FANPAGE: "https://www.facebook.com/diamondnova"
+  YOUTUBE: "https://youtube.com/@itachiwa_01?si=xL-3vNdye1dFF-v7",
+  TELEGRAM: "https://t.me/+JzOTfYqCwAU4MzE1",
+  FANPAGE: "beacons.ai/vanhtrumvn"
 };
 
 /**
