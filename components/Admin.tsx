@@ -7,7 +7,7 @@ import {
   Users, CreditCard, Search, Ban, Unlock, Plus, Trash2, Megaphone, ShieldCheck, 
   ShoppingBag, Ticket, History, Activity, Database, Copy, CheckCircle2, X, 
   PlusCircle, Gamepad2, Building2, AlertTriangle, Loader2, Eye, EyeOff,
-  LayoutTemplate, ImageIcon, MessageSquarePlus, Tag
+  LayoutTemplate, ImageIcon, MessageSquarePlus, Tag, UserPlus
 } from 'lucide-react';
 
 interface Props {
@@ -33,7 +33,6 @@ const Admin: React.FC<Props> = ({ user }) => {
   const [newAnn, setNewAnn] = useState({ title: '', content: '', priority: 'low' as 'low' | 'high' });
   const [newGc, setNewGc] = useState({ code: '', amount: 10000, maxUses: 100 });
 
-  // Fix: Definition for filteredWithdrawals to solve "Cannot find name 'filteredWithdrawals'" error
   const filteredWithdrawals = useMemo(() => {
     return withdrawals.filter(w => 
       w.userName.toLowerCase().includes(withdrawSearchTerm.toLowerCase()) ||
@@ -241,7 +240,7 @@ ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;`;
 
   return (
     <div className="space-y-8 animate-in fade-in pb-20">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="flex items-center gap-4">
           <div className="p-4 bg-blue-600 rounded-2xl shadow-xl shadow-blue-600/20"><ShieldCheck className="w-8 h-8 text-white" /></div>
           <div>
@@ -249,9 +248,22 @@ ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;`;
             <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest italic mt-1">Hệ thống quản trị Vision 1.1</p>
           </div>
         </div>
-        <button onClick={refreshData} className="px-6 py-3 bg-slate-900 border border-white/5 rounded-xl text-[10px] font-black uppercase text-white hover:bg-slate-800 flex items-center gap-2 transition-all">
-           <Activity className={`w-4 h-4 ${isSyncing ? 'animate-spin text-blue-400' : ''}`} /> ĐỒNG BỘ
-        </button>
+
+        <div className="flex items-center gap-3">
+          {/* TỔNG SỐ NGƯỜI DÙNG CARD */}
+          <div className="bg-slate-900 border border-white/5 px-6 py-3 rounded-2xl flex items-center gap-4 shadow-xl">
+             <div className="p-2 bg-blue-600/10 rounded-lg text-blue-400">
+                <Users size={16} />
+             </div>
+             <div>
+                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest block">TỔNG HỘI VIÊN</span>
+                <span className="text-lg font-black text-white italic">{allUsers.length.toLocaleString()}</span>
+             </div>
+          </div>
+          <button onClick={refreshData} className="px-6 py-4 bg-slate-900 border border-white/5 rounded-2xl text-[10px] font-black uppercase text-white hover:bg-slate-800 flex items-center gap-2 transition-all">
+             <Activity className={`w-4 h-4 ${isSyncing ? 'animate-spin text-blue-400' : ''}`} /> ĐỒNG BỘ
+          </button>
+        </div>
       </div>
 
       <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
@@ -274,9 +286,15 @@ ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;`;
       <div className="glass-card p-10 md:p-14 rounded-[4rem] border border-white/10 shadow-3xl bg-slate-950/40 relative min-h-[600px]">
         {tab === 'users' && (
            <div className="space-y-10 animate-in slide-in-from-right-4">
-              <div className="relative w-full max-w-md">
-                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
-                 <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm hội viên (Email, Tên, ID)..." className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-16 pr-6 py-5 text-white font-bold outline-none focus:border-blue-500 shadow-inner" />
+              <div className="flex flex-col md:flex-row gap-6 justify-between items-center">
+                <div className="relative w-full max-w-md">
+                   <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+                   <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm hội viên (Email, Tên, ID)..." className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-16 pr-6 py-5 text-white font-bold outline-none focus:border-blue-500 shadow-inner" />
+                </div>
+                <div className="hidden md:flex items-center gap-4 text-slate-500 font-black text-[10px] uppercase tracking-widest italic">
+                   <UserPlus size={16} className="text-blue-500" />
+                   HIỂN THỊ {allUsers.filter(u => u.fullname.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()) || u.id.toLowerCase().includes(searchTerm.toLowerCase())).length} / {allUsers.length} KẾT QUẢ
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
