@@ -25,9 +25,39 @@ const Vip: React.FC<Props> = ({ user, onUpdateUser }) => {
   const [orderId, setOrderId] = useState('');
 
   const packages = [
-    { name: 'VIP BASIC', vnd: 20000, days: 1, tier: VipTier.BASIC, color: 'text-blue-400', bg: 'bg-blue-600/10', border: 'border-blue-500/20' },
-    { name: 'VIP PRO', vnd: 100000, days: 7, tier: VipTier.PRO, color: 'text-amber-400', bg: 'bg-amber-600/10', border: 'border-amber-500/20' },
-    { name: 'VIP ELITE', vnd: 500000, days: 30, tier: VipTier.ELITE, color: 'text-purple-400', bg: 'bg-purple-600/10', border: 'border-purple-500/20' }
+    { 
+      name: 'VIP BASIC', 
+      vnd: 20000, 
+      days: 1, 
+      tier: VipTier.BASIC, 
+      color: 'text-blue-400', 
+      bg: 'bg-blue-600/10', 
+      border: 'border-blue-500/20',
+      rich: 'basic-border-rich',
+      shimmer: 'vip-basic-shimmer'
+    },
+    { 
+      name: 'VIP PRO', 
+      vnd: 100000, 
+      days: 7, 
+      tier: VipTier.PRO, 
+      color: 'text-amber-400', 
+      bg: 'bg-amber-600/10', 
+      border: 'border-amber-500/20',
+      rich: 'pro-border-rich',
+      shimmer: 'vip-pro-shimmer'
+    },
+    { 
+      name: 'VIP ELITE', 
+      vnd: 500000, 
+      days: 30, 
+      tier: VipTier.ELITE, 
+      color: 'text-purple-400', 
+      bg: 'bg-purple-600/10', 
+      border: 'border-purple-500/20',
+      rich: 'elite-border-rich',
+      shimmer: 'vip-elite-shimmer'
+    }
   ];
 
   useEffect(() => {
@@ -37,14 +67,12 @@ const Vip: React.FC<Props> = ({ user, onUpdateUser }) => {
   const openDeposit = (pkg: any) => {
     setSelectedPkg(pkg);
     setRandomBank(ADMIN_BANKS[Math.floor(Math.random() * ADMIN_BANKS.length)]);
-    // Tạo ID lệnh 8 ký tự viết hoa
     setOrderId(Math.random().toString(36).substring(2, 10).toUpperCase());
     setShowDepositModal(true);
     setPaymentMethod(null);
     setBillFile(null);
   };
 
-  // Định dạng chuẩn: N-VIP-ADAM-[TIER]-[ID_LENH]-[NAME]-[GMAIL]
   const generateTransferContent = () => {
     if (!selectedPkg) return "";
     const tier = selectedPkg.tier.toUpperCase();
@@ -93,11 +121,20 @@ const Vip: React.FC<Props> = ({ user, onUpdateUser }) => {
     alert("Đã sao chép nội dung!");
   };
 
+  const getVipCrownColor = (tier: VipTier) => {
+    switch(tier) {
+      case VipTier.ELITE: return 'text-purple-400 fill-purple-400';
+      case VipTier.PRO: return 'text-amber-400 fill-amber-400';
+      case VipTier.BASIC: return 'text-blue-400 fill-blue-400';
+      default: return 'text-slate-400 fill-slate-400';
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-12 py-10 animate-in fade-in">
       {/* Header */}
       <div className="glass-card p-12 rounded-[4rem] text-center relative overflow-hidden border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-transparent">
-        <Crown className="w-24 h-24 text-amber-500 mx-auto mb-6 drop-shadow-glow" />
+        <Crown className="w-24 h-24 text-amber-500 mx-auto mb-6 drop-shadow-glow vip-crown-float" />
         <h1 className="text-4xl font-black text-white italic uppercase tracking-tighter">HỆ THỐNG VIP <span className="text-amber-400">DIAMOND NOVA</span></h1>
         <p className="text-slate-400 mt-4 font-medium italic uppercase tracking-widest text-[10px]">{SLOGAN}</p>
       </div>
@@ -116,20 +153,27 @@ const Vip: React.FC<Props> = ({ user, onUpdateUser }) => {
       {/* Packages */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {packages.map(pkg => (
-          <div key={pkg.tier} className={`glass-card p-10 rounded-[3rem] border ${pkg.border} ${pkg.bg} flex flex-col justify-between group hover:scale-105 transition-all shadow-xl`}>
-            <div className="text-center space-y-6">
-              <div className={`text-[10px] font-black uppercase tracking-[0.3em] ${pkg.color}`}>{pkg.name}</div>
+          <div key={pkg.tier} className={`glass-card p-10 rounded-[3rem] border-2 transition-all shadow-xl flex flex-col justify-between group hover:scale-105 relative overflow-hidden ${pkg.rich} ${pkg.bg}`}>
+            {/* Rich Background Effect */}
+            <div className={`absolute inset-0 pointer-events-none opacity-20 ${pkg.shimmer}`}></div>
+            
+            <div className="text-center space-y-6 relative z-10">
+              <div className="flex justify-center mb-2">
+                <Crown className={`w-12 h-12 vip-crown-float ${getVipCrownColor(pkg.tier)}`} />
+              </div>
+              <div className={`text-[12px] font-black uppercase tracking-[0.4em] ${pkg.color}`}>{pkg.name}</div>
               <div className="text-4xl font-black text-white italic tracking-tighter">{pkg.days} NGÀY</div>
               <div className="h-px bg-white/5 w-full"></div>
               <div className="space-y-3 text-left">
-                <div className="flex items-center gap-3 text-slate-400 text-xs italic"><CheckCircle2 size={14} className="text-emerald-500" /> +50% Thưởng nhiệm vụ</div>
-                <div className="flex items-center gap-3 text-slate-400 text-xs italic"><CheckCircle2 size={14} className="text-emerald-500" /> Ưu tiên duyệt lệnh 5 phút</div>
-                <div className="flex items-center gap-3 text-slate-400 text-xs italic"><CheckCircle2 size={14} className="text-emerald-500" /> Huy hiệu {pkg.tier.toUpperCase()} hồ sơ</div>
+                <div className="flex items-center gap-3 text-slate-400 text-xs italic font-bold"><CheckCircle2 size={14} className="text-emerald-500" /> +50% Thưởng nhiệm vụ</div>
+                <div className="flex items-center gap-3 text-slate-400 text-xs italic font-bold"><CheckCircle2 size={14} className="text-emerald-500" /> Ưu tiên duyệt lệnh 5 phút</div>
+                <div className="flex items-center gap-3 text-slate-400 text-xs italic font-bold"><CheckCircle2 size={14} className="text-emerald-500" /> Huy hiệu {pkg.tier.toUpperCase()} hồ sơ</div>
+                <div className="flex items-center gap-3 text-slate-400 text-xs italic font-bold"><CheckCircle2 size={14} className="text-emerald-500" /> Mở khóa Avatar VIP</div>
               </div>
             </div>
             <button 
               onClick={() => openDeposit(pkg)}
-              className={`w-full mt-10 py-5 rounded-2xl font-black text-[11px] uppercase italic tracking-widest transition-all ${pkg.tier === VipTier.ELITE ? 'bg-purple-600 shadow-purple-600/20' : pkg.tier === VipTier.PRO ? 'bg-amber-500 text-black shadow-amber-500/20' : 'bg-blue-600 shadow-blue-600/20'} text-white active:scale-95 shadow-lg`}
+              className={`relative z-10 w-full mt-10 py-5 rounded-2xl font-black text-[11px] uppercase italic tracking-widest transition-all ${pkg.tier === VipTier.ELITE ? 'bg-purple-600 shadow-purple-600/20' : pkg.tier === VipTier.PRO ? 'bg-amber-500 text-black shadow-amber-500/20' : 'bg-blue-600 shadow-blue-600/20'} text-white active:scale-95 shadow-lg`}
             >
               NÂNG CẤP NGAY
             </button>

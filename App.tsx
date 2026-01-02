@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { AppView, User } from './types.ts';
+import { AppView, User, VipTier } from './types.ts';
 import { dbService, supabase } from './services/dbService.ts';
 import { NAV_ITEMS, formatK, SOCIAL_LINKS } from './constants.tsx';
 import { 
@@ -141,6 +141,33 @@ const App: React.FC = () => {
     }
   };
 
+  const getVipRichStyle = () => {
+    switch(user.vipTier) {
+      case VipTier.ELITE: return 'elite-border-rich';
+      case VipTier.PRO: return 'pro-border-rich';
+      case VipTier.BASIC: return 'basic-border-rich';
+      default: return 'border-white/10';
+    }
+  };
+
+  const getVipCrownColor = () => {
+    switch(user.vipTier) {
+      case VipTier.ELITE: return 'text-purple-400 fill-purple-400';
+      case VipTier.PRO: return 'text-amber-400 fill-amber-400';
+      case VipTier.BASIC: return 'text-blue-400 fill-blue-400';
+      default: return 'text-slate-400 fill-slate-400';
+    }
+  };
+
+  const getVipBadgeColor = () => {
+    switch(user.vipTier) {
+      case VipTier.ELITE: return 'text-purple-400';
+      case VipTier.PRO: return 'text-amber-400';
+      case VipTier.BASIC: return 'text-blue-400';
+      default: return 'text-slate-500';
+    }
+  };
+
   return (
     <div className={`min-h-screen flex ${theme === 'dark' ? 'bg-[#06080c]' : 'bg-slate-50'} text-slate-200 transition-colors duration-500 relative`}>
       <aside className={`fixed inset-y-0 left-0 z-[100] w-72 glass-card border-r border-white/5 transform transition-transform md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
@@ -165,15 +192,22 @@ const App: React.FC = () => {
           </nav>
           <div className="mt-auto pt-8 border-t border-white/5">
              <div className="flex items-center gap-4 px-3 mb-8">
-               <div className={`w-10 h-10 ${user.isVip ? 'bg-amber-500' : 'bg-blue-600'} rounded-xl flex items-center justify-center font-black text-white relative`}>
-                 {user?.fullname.charAt(0)}
-                 {user.isVip && <Crown className="absolute -top-2 -right-2 w-5 h-5 text-amber-400 fill-amber-400" />}
+               <div className={`w-12 h-12 ${user.isVip ? 'bg-slate-900' : 'bg-blue-600'} rounded-2xl flex items-center justify-center font-black text-white relative border-2 ${getVipRichStyle()}`}>
+                 {user?.avatarUrl ? (
+                   <img src={user.avatarUrl} className="w-full h-full object-cover rounded-xl" />
+                 ) : (
+                   user?.fullname.charAt(0)
+                 )}
+                 {user.isVip && <Crown className={`absolute -top-3 -right-3 w-6 h-6 vip-crown-float ${getVipCrownColor()}`} />}
+                 {user.isVip && <div className={`absolute inset-0 rounded-xl pointer-events-none ${user.vipTier === VipTier.ELITE ? 'vip-elite-shimmer' : user.vipTier === VipTier.PRO ? 'vip-pro-shimmer' : 'vip-basic-shimmer'}`}></div>}
                </div>
-               <div className="flex flex-col">
-                 <span className={`text-xs font-black uppercase truncate ${user.isVip ? 'text-amber-400' : 'text-white'}`}>{user?.fullname}</span>
+               <div className="flex flex-col overflow-hidden">
+                 <span className={`text-xs font-black uppercase truncate ${user.isVip ? getVipBadgeColor() : 'text-white'}`}>{user?.fullname}</span>
                  <div className="flex items-center gap-2">
                     <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
-                    <span className="text-[8px] text-slate-500 uppercase">Hội viên {user.isVip ? 'VIP' : 'Elite'}</span>
+                    <span className="text-[8px] text-slate-500 uppercase font-black tracking-tighter truncate">
+                      Hội viên <span className={getVipBadgeColor()}>{user.vipTier !== VipTier.NONE ? user.vipTier.toUpperCase() : 'Elite'}</span>
+                    </span>
                  </div>
                </div>
              </div>

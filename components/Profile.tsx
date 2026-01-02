@@ -5,6 +5,8 @@ import {
   Shield, Save, KeyRound, Phone, Fingerprint, CheckCircle2, UserX, Lock, ShieldCheck, Crown, Loader2
 } from 'lucide-react';
 import { dbService } from '../services/dbService.ts';
+// Import SOCIAL_LINKS from constants.tsx to satisfy line 160
+import { SOCIAL_LINKS } from '../constants.tsx';
 
 interface Props {
   user: User;
@@ -50,28 +52,49 @@ const Profile: React.FC<Props> = ({ user, onUpdateUser }) => {
     }
   };
 
-  const getVipColor = () => {
+  const getVipRichStyle = () => {
     switch(user.vipTier) {
-      case VipTier.ELITE: return 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.5)]';
-      case VipTier.PRO: return 'border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]';
-      case VipTier.BASIC: return 'border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]';
-      default: return 'border-slate-800';
+      case VipTier.ELITE: return 'elite-border-rich';
+      case VipTier.PRO: return 'pro-border-rich';
+      case VipTier.BASIC: return 'basic-border-rich';
+      default: return 'border-white/10';
+    }
+  };
+
+  const getVipCrownColor = () => {
+    switch(user.vipTier) {
+      case VipTier.ELITE: return 'text-purple-400 fill-purple-400';
+      case VipTier.PRO: return 'text-amber-400 fill-amber-400';
+      case VipTier.BASIC: return 'text-blue-400 fill-blue-400';
+      default: return 'text-slate-400 fill-slate-400';
     }
   };
 
   return (
     <div className="space-y-10 animate-in fade-in pb-20">
-      <div className="flex flex-col md:flex-row items-center gap-8 glass-card p-10 rounded-[3.5rem] border border-white/5">
-        <div className={`w-32 h-32 rounded-[2.5rem] bg-slate-900 flex items-center justify-center border-4 relative ${getVipColor()}`}>
-           {user.avatarUrl ? <img src={user.avatarUrl} className="w-full h-full object-cover rounded-[2.2rem]" /> : <Fingerprint className="w-12 h-12 text-slate-700" />}
-           {user.isVip && <Crown className="absolute -top-4 -right-4 w-10 h-10 text-amber-500 fill-amber-500 animate-bounce" />}
+      <div className="flex flex-col md:flex-row items-center gap-8 glass-card p-10 rounded-[3.5rem] border border-white/5 relative overflow-hidden">
+        {/* VIP Shimmer Overlay */}
+        {user.isVip && (
+          <div className={`absolute inset-0 pointer-events-none opacity-40 ${user.vipTier === VipTier.ELITE ? 'vip-elite-shimmer' : user.vipTier === VipTier.PRO ? 'vip-pro-shimmer' : 'vip-basic-shimmer'}`}></div>
+        )}
+
+        <div className={`w-32 h-32 rounded-[2.5rem] bg-slate-900 flex items-center justify-center relative z-10 ${getVipRichStyle()}`}>
+           {user.avatarUrl ? (
+             <img src={user.avatarUrl} className="w-full h-full object-cover rounded-[2.2rem]" />
+           ) : (
+             <Fingerprint className="w-12 h-12 text-slate-700" />
+           )}
+           {user.isVip && <Crown className={`absolute -top-6 -right-6 w-12 h-12 vip-crown-float ${getVipCrownColor()}`} />}
         </div>
-        <div className="text-center md:text-left">
+        <div className="text-center md:text-left relative z-10">
            <h1 className="text-4xl font-black text-white italic uppercase tracking-tighter">{user.fullname}</h1>
            <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-3">
-              <span className="bg-slate-900 border border-white/5 text-slate-500 text-[9px] font-black px-4 py-1.5 rounded-full">#{user.id.toUpperCase()}</span>
-              <span className={`text-[9px] font-black px-4 py-1.5 rounded-full border ${user.isVip ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-slate-900 text-slate-700 border-white/5'}`}>
-                 RANK: {user.vipTier.toUpperCase()}
+              <span className="bg-slate-900 border border-white/5 text-slate-500 text-[9px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest italic">ID: {user.id.toUpperCase()}</span>
+              <span className={`text-[9px] font-black px-4 py-1.5 rounded-full border shadow-sm flex items-center gap-2 ${user.isVip ? 'bg-white/5 border-white/10' : 'bg-slate-900 text-slate-700 border-white/5'}`}>
+                 <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${user.vipTier === VipTier.ELITE ? 'bg-purple-400' : user.vipTier === VipTier.PRO ? 'bg-amber-400' : user.vipTier === VipTier.BASIC ? 'bg-blue-400' : 'bg-slate-700'}`}></div>
+                 HẠNG: <span className={user.vipTier === VipTier.ELITE ? 'text-purple-400' : user.vipTier === VipTier.PRO ? 'text-amber-400' : user.vipTier === VipTier.BASIC ? 'text-blue-400' : 'text-slate-500'}>
+                   {user.vipTier.toUpperCase()}
+                 </span>
               </span>
            </div>
         </div>
@@ -135,7 +158,8 @@ const Profile: React.FC<Props> = ({ user, onUpdateUser }) => {
                 </div>
              </form>
            )}
-           <div className="pt-6 border-t border-white/5">
+           <div className="pt-6 border-t border-white/5 text-center">
+              <p className="text-[9px] text-slate-600 font-bold italic mb-4 uppercase tracking-tighter">Lấy mã xác nhận tại Bot: <a href={SOCIAL_LINKS.telegramBot} target="_blank" className="text-blue-500 hover:underline">@anhvudev_kiemtienonline_bot</a></p>
               <button onClick={() => alert("Hãy liên hệ Admin để xóa tài khoản.")} className="w-full py-4 bg-red-600/10 text-red-500 rounded-2xl font-black uppercase text-[9px] italic border border-red-500/20">YÊU CẦU XÓA TÀI KHOẢN</button>
            </div>
         </div>

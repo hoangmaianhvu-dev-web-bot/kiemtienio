@@ -78,6 +78,50 @@
       .animate-marquee:hover {
         animation-play-state: paused;
       }
+
+      /* VIP Animations */
+      @keyframes vip-shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+      }
+      .vip-elite-shimmer {
+        background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.2), transparent);
+        background-size: 200% 100%;
+        animation: vip-shimmer 3s infinite linear;
+      }
+      .vip-pro-shimmer {
+        background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.2), transparent);
+        background-size: 200% 100%;
+        animation: vip-shimmer 4s infinite linear;
+      }
+      .vip-basic-shimmer {
+        background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.2), transparent);
+        background-size: 200% 100%;
+        animation: vip-shimmer 5s infinite linear;
+      }
+      
+      @keyframes float {
+        0% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-5px) rotate(2deg); }
+        100% { transform: translateY(0px) rotate(0deg); }
+      }
+      .vip-crown-float {
+        animation: float 2.5s ease-in-out infinite;
+      }
+
+      /* VIP Rich Borders */
+      .elite-border-rich {
+        border: 2px solid #a855f7;
+        box-shadow: 0 0 15px rgba(168, 85, 247, 0.4), inset 0 0 10px rgba(168, 85, 247, 0.2);
+      }
+      .pro-border-rich {
+        border: 2px solid #f59e0b;
+        box-shadow: 0 0 15px rgba(245, 158, 11, 0.4), inset 0 0 10px rgba(245, 158, 11, 0.2);
+      }
+      .basic-border-rich {
+        border: 2px solid #3b82f6;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.3), inset 0 0 5px rgba(59, 130, 246, 0.1);
+      }
     </style>
 
     <script type="importmap-shim">
