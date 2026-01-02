@@ -15,9 +15,10 @@ interface AdminProps {
   onUpdateUser: (user: User) => void;
   setSecurityModal: (state: { isOpen: boolean; score: number }) => void;
   showToast: (title: string, message: string, type: Notification['type']) => void;
+  showGoldSuccess: (title: string, description: string) => void;
 }
 
-export default function Admin({ user, onUpdateUser, setSecurityModal, showToast }: AdminProps) {
+export default function Admin({ user, onUpdateUser, setSecurityModal, showToast, showGoldSuccess }: AdminProps) {
   // --- LỚP BẢO MẬT TUYỆT ĐỐI ---
   if (!user.isAdmin) {
     return (
@@ -103,13 +104,21 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast 
 
   const handleDeleteUser = async (u: User) => {
     if (u.email === 'adminavudev@gmail.com') return alert("Không thể xóa tài khoản Admin hệ thống!");
-    if (!confirm(`CẢNH BÁO: Xóa vĩnh viễn hội viên ${u.fullname}? Hành động này không thể hoàn tác!`)) return;
+    if (!confirm(`CẢNH BÁO NGUY HIỂM: Bạn có chắc chắn muốn xóa VĨNH VIỄN hội viên ${u.fullname}? Dữ liệu liên quan đến người dùng này sẽ biến mất hoàn toàn và không thể khôi phục!`)) return;
     
     setIsActionLoading(true);
     const res = await dbService.deleteUser(u.id);
+    
     if (res.success) {
-      showToast('ADMIN', res.message, 'success');
-      await refreshData();
+      // 1. Cập nhật local state ngay lập tức để người dùng biến mất khỏi danh sách
+      setUsers(prev => prev.filter(user => user.id !== u.id));
+      setActiveUserMenu(null);
+      
+      // 2. Hiển thị thông báo Gold Modal uy tín
+      showGoldSuccess(
+        "XÓA THÀNH CÔNG", 
+        `Toàn bộ dữ liệu của hội viên ${u.fullname} đã được xóa vĩnh viễn khỏi máy chủ Nova.`
+      );
     } else {
       showToast('ADMIN', res.message, 'error');
     }

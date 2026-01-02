@@ -199,7 +199,7 @@ const App: React.FC = () => {
                 case AppView.PROFILE: return <Profile user={user} onUpdateUser={updateUser} />;
                 case AppView.GIFTCODE: return <Giftcode user={user} onUpdateUser={updateUser} showGoldSuccess={showGoldSuccess} />;
                 case AppView.REFERRAL: return <Referral user={user} />;
-                case AppView.ADMIN: return <Admin user={user} onUpdateUser={updateUser} setSecurityModal={setSecurityModal} showToast={showToast} />;
+                case AppView.ADMIN: return <Admin user={user} onUpdateUser={updateUser} setSecurityModal={setSecurityModal} showToast={showToast} showGoldSuccess={showGoldSuccess} />;
                 case AppView.GUIDE: return <Guide />;
                 case AppView.NOTIFICATIONS: return <UserNotifications user={user} />;
                 case AppView.SUPPORT: return <Support />;

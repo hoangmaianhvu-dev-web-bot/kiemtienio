@@ -134,8 +134,20 @@ export const dbService = {
   },
 
   deleteUser: async (userId: string) => {
-    const { error } = await supabase.from('users_data').delete().eq('id', userId);
-    return { success: !error, message: error ? error.message : 'Đã xóa hội viên vĩnh viễn.' };
+    // 1. Xóa các bản ghi liên quan để tránh lỗi ràng buộc khóa ngoại (Foreign Key Constraints)
+    // Nếu Supabase đã có ON DELETE CASCADE thì không cần, nhưng làm thủ công cho chắc chắn
+    await supabase.from('withdrawals').delete().eq('user_id', userId);
+    await supabase.from('notifications').delete().eq('user_id', userId);
+    await supabase.from('vip_requests').delete().eq('user_id', userId);
+
+    // 2. Thực hiện xóa hội viên chính
+    const { error, status } = await supabase.from('users_data').delete().eq('id', userId);
+    
+    if (error) {
+      return { success: false, message: `Lỗi DB: ${error.message}` };
+    }
+    
+    return { success: true, message: 'Đã xóa hội viên vĩnh viễn.' };
   },
 
   addPointsSecurely: async (userId: string, timeElapsed: number, points: number, gateName: string) => {
