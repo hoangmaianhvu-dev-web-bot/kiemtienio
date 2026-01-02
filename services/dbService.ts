@@ -30,7 +30,8 @@ const mapUser = (u: any): User => {
     referralCount: Number(u.referral_count ?? 0),
     referralBonus: Number(u.referral_bonus ?? 0),
     referredBy: u.referred_by,
-    taskCounts: u.task_counts || {}
+    taskCounts: u.task_counts || {},
+    avatarUrl: u.avatar_url || ''
   };
 };
 
@@ -96,7 +97,8 @@ export const dbService = {
         balance: 0, total_earned: 0, tasks_today: 0, tasks_week: 0, 
         is_admin: isFirst, is_banned: false, security_score: 100,
         total_giftcode_earned: 0,
-        join_date: new Date().toISOString(), referred_by: refId || null, bank_info: '', id_game: '', task_counts: {}
+        join_date: new Date().toISOString(), referred_by: refId || null, bank_info: '', id_game: '', task_counts: {},
+        avatar_url: ''
       };
 
       const { error } = await supabase.from('users_data').insert([newUser]);
@@ -139,9 +141,10 @@ export const dbService = {
     if (updates.tasksToday !== undefined) dbUpdates.tasks_today = updates.tasksToday;
     if (updates.tasksWeek !== undefined) dbUpdates.tasks_week = updates.tasksWeek;
     if (updates.lastTaskDate !== undefined) dbUpdates.last_task_date = updates.lastTaskDate;
-    if (updates.bankInfo !== undefined) dbUpdates.bank_info = updates.bank_info;
-    if (updates.idGame !== undefined) dbUpdates.id_game = updates.id_game;
+    if (updates.bankInfo !== undefined) dbUpdates.bank_info = updates.bankInfo;
+    if (updates.idGame !== undefined) dbUpdates.id_game = updates.idGame;
     if (updates.balance !== undefined) dbUpdates.balance = updates.balance;
+    if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
     return await supabase.from('users_data').update(dbUpdates).eq('id', id);
   },
 

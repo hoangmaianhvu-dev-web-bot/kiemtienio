@@ -45,6 +45,7 @@ export interface User {
   referralCount?: number;
   referralBonus?: number;
   referredBy?: string;
+  avatarUrl?: string;
 }
 
 export interface AccountRecord {

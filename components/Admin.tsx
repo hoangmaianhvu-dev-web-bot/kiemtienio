@@ -135,6 +135,7 @@ ALTER TABLE public.users_data ADD COLUMN IF NOT EXISTS referral_count INTEGER DE
 ALTER TABLE public.users_data ADD COLUMN IF NOT EXISTS referral_bonus NUMERIC DEFAULT 0;
 ALTER TABLE public.users_data ADD COLUMN IF NOT EXISTS bank_info TEXT;
 ALTER TABLE public.users_data ADD COLUMN IF NOT EXISTS id_game TEXT;
+ALTER TABLE public.users_data ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 ALTER TABLE public.users_data ADD COLUMN IF NOT EXISTS task_counts JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE public.users_data ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT false;
 ALTER TABLE public.users_data ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT false;

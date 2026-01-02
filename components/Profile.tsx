@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { User } from '../types.ts';
 import { 
   Shield, 
@@ -19,7 +19,11 @@ import {
   ShieldCheck,
   ShieldAlert,
   ShieldOff,
-  Activity
+  Activity,
+  Camera,
+  X,
+  RotateCcw,
+  Aperture
 } from 'lucide-react';
 
 interface Props {
@@ -31,6 +35,14 @@ const Profile: React.FC<Props> = ({ user, onUpdateUser }) => {
   const [bank, setBank] = useState(user.bankInfo);
   const [gameId, setGameId] = useState(user.idGame);
   const [saved, setSaved] = useState(false);
+  
+  // Camera States
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isCameraLoading, setIsCameraLoading] = useState(false);
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const handleSave = () => {
     onUpdateUser({ ...user, bankInfo: bank, idGame: gameId });
@@ -69,12 +81,78 @@ const Profile: React.FC<Props> = ({ user, onUpdateUser }) => {
 
   const security = getSecurityStatus();
 
+  // Camera Logic
+  const openCamera = async () => {
+    setIsCameraOpen(true);
+    setIsCameraLoading(true);
+    setCapturedImage(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { width: 500, height: 500, facingMode: 'user' } 
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch (err) {
+      console.error("Lỗi truy cập camera:", err);
+      alert("Không thể truy cập camera. Vui lòng cấp quyền.");
+      setIsCameraOpen(false);
+    } finally {
+      setIsCameraLoading(false);
+    }
+  };
+
+  const closeCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach(track => track.stop());
+    }
+    setIsCameraOpen(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const context = canvasRef.current.getContext('2d');
+      if (context) {
+        canvasRef.current.width = 500;
+        canvasRef.current.height = 500;
+        context.drawImage(videoRef.current, 0, 0, 500, 500);
+        const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.8);
+        setCapturedImage(dataUrl);
+        
+        // Stop camera
+        const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+        tracks.forEach(track => track.stop());
+      }
+    }
+  };
+
+  const updateAvatar = () => {
+    if (capturedImage) {
+      onUpdateUser({ ...user, avatarUrl: capturedImage });
+      setIsCameraOpen(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-5">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-600/30 border-2 border-white/10">
-            <Fingerprint className="w-10 h-10 text-white" />
+          <div 
+            onClick={openCamera}
+            className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-600/30 border-2 border-white/10 overflow-hidden group cursor-pointer relative"
+          >
+            {user.avatarUrl ? (
+              <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+            ) : (
+              <Fingerprint className="w-10 h-10 text-white" />
+            )}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+              <Camera size={20} className="text-white" />
+            </div>
           </div>
           <div>
             <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase">{user.fullname}</h1>
@@ -242,6 +320,70 @@ const Profile: React.FC<Props> = ({ user, onUpdateUser }) => {
            </div>
         </div>
       </div>
+
+      {/* Camera Modal */}
+      {isCameraOpen && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-6 animate-in fade-in">
+           <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={closeCamera}></div>
+           <div className="glass-card w-full max-w-lg p-10 rounded-[3rem] border border-white/10 relative z-10 space-y-8 animate-in zoom-in-95">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-black text-white italic uppercase">CHỤP ẢNH ĐẠI DIỆN</h2>
+                <button onClick={closeCamera} className="p-2 bg-white/5 rounded-xl text-slate-500 hover:text-white"><X size={20} /></button>
+              </div>
+
+              <div className="relative aspect-square bg-black rounded-[2rem] overflow-hidden border border-white/5 shadow-2xl">
+                 {!capturedImage ? (
+                   <>
+                     <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" />
+                     {isCameraLoading && (
+                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/80">
+                         <Aperture className="w-10 h-10 text-blue-500 animate-spin" />
+                         <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest italic">Đang khởi tạo Camera...</span>
+                       </div>
+                     )}
+                     <div className="absolute inset-0 pointer-events-none border-[30px] border-black/20 rounded-[2rem]"></div>
+                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border border-white/10 rounded-full"></div>
+                   </>
+                 ) : (
+                   <img src={capturedImage} alt="Captured" className="w-full h-full object-cover scale-x-[-1]" />
+                 )}
+              </div>
+
+              <div className="flex flex-col gap-4">
+                 {!capturedImage ? (
+                   <button 
+                    onClick={capturePhoto} 
+                    className="w-full py-6 bg-white text-black font-black rounded-2xl italic uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl active:scale-95"
+                   >
+                     <Aperture size={24} />
+                     CHỤP ẢNH NGAY
+                   </button>
+                 ) : (
+                   <div className="flex gap-4">
+                      <button 
+                        onClick={() => { setCapturedImage(null); openCamera(); }} 
+                        className="flex-1 py-5 bg-slate-900 border border-white/5 text-slate-400 font-black rounded-2xl italic uppercase text-xs flex items-center justify-center gap-2"
+                      >
+                        <RotateCcw size={18} /> CHỤP LẠI
+                      </button>
+                      <button 
+                        onClick={updateAvatar} 
+                        className="flex-1 py-5 bg-blue-600 text-white font-black rounded-2xl italic uppercase text-xs flex items-center justify-center gap-2 shadow-xl shadow-blue-600/20"
+                      >
+                        <CheckCircle2 size={18} /> CẬP NHẬT ẢNH
+                      </button>
+                   </div>
+                 )}
+              </div>
+              
+              <p className="text-[9px] text-slate-600 text-center font-bold italic uppercase tracking-widest">
+                Nova Cloud Sync • Camera Verified
+              </p>
+           </div>
+        </div>
+      )}
+      
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
     </div>
   );
 };
