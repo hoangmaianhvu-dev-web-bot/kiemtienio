@@ -32,7 +32,22 @@ export const DAILY_TASK_LIMIT = 20;
 // Khóa bảo mật để gọi RPC (Phải khớp với mã trong SQL của bạn)
 export const SECURE_AUTH_KEY = "MA_BAO_MAT_CUA_ADMIN";
 
-export const WITHDRAW_MILESTONES = [5000, 10000, 20000, 50000, 100000, 200000, 500000];
+// Milestones tính bằng VNĐ (1 VNĐ = 10 Điểm)
+export const WITHDRAW_MILESTONES = [5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000];
+
+// Bảng giá quy đổi Kim Cương theo yêu cầu (VNĐ -> Kim Cương)
+export const DIAMOND_EXCHANGE: Record<number, number> = {
+  5000: 25,       // 50k P
+  10000: 51,      // 100k P
+  20000: 113,     // 200k P
+  50000: 283,     // 500k P
+  100000: 566,    // 1M P
+  200000: 1132,   // 2M P
+  500000: 2830,   // 5M P
+  1000000: 5750,  // 10M P
+  2000000: 11500  // 20M P
+};
+
 export const BLOG_DESTINATION = "https://avudev-verifi.blogspot.com/";
 
 export const SOCIAL_LINKS = {

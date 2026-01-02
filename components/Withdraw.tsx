@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, WithdrawalRequest } from '../types.ts';
-import { WITHDRAW_MILESTONES, RATE_VND_TO_POINT, formatK, POINT_PER_DIAMOND } from '../constants.tsx';
+import { WITHDRAW_MILESTONES, RATE_VND_TO_POINT, formatK, DIAMOND_EXCHANGE } from '../constants.tsx';
 import { dbService } from '../services/dbService.ts';
 import { Building2, Gamepad2, Wallet, CheckCircle, Loader2, History, ArrowRightLeft } from 'lucide-react';
 
@@ -35,7 +35,7 @@ const Withdraw: React.FC<Props> = ({ user, onUpdateUser, initialHistory = false 
   const canAfford = user.balance >= pointsNeeded;
 
   const getGameDiamondValue = (vnd: number) => {
-    return Math.floor((vnd * RATE_VND_TO_POINT) / POINT_PER_DIAMOND);
+    return DIAMOND_EXCHANGE[vnd] || 0;
   };
 
   const handleWithdraw = async () => {
@@ -47,7 +47,6 @@ const Withdraw: React.FC<Props> = ({ user, onUpdateUser, initialHistory = false 
     setTimeout(async () => {
       const request: Partial<WithdrawalRequest> = {
         userId: user.id,
-        // Gắn thêm Email vào userName để Admin dễ tìm
         userName: `${user.fullname} (${user.email})`,
         amount: selectedMilestone,
         type: method,
@@ -97,7 +96,7 @@ const Withdraw: React.FC<Props> = ({ user, onUpdateUser, initialHistory = false 
                       <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest bg-blue-500/10 px-2 py-0.5 rounded">ID: #{req.id}</span>
                     </div>
                     <h4 className="font-black text-xl text-white uppercase italic tracking-tight">
-                      {req.type === 'bank' ? `${req.amount.toLocaleString()}đ` : `${getGameDiamondValue(req.amount)} KC`}
+                      {req.type === 'bank' ? `${req.amount.toLocaleString()}đ` : `${getGameDiamondValue(req.amount).toLocaleString()} KC`}
                     </h4>
                     <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{new Date(req.createdAt).toLocaleString('vi-VN')}</span>
                   </div>
@@ -122,7 +121,7 @@ const Withdraw: React.FC<Props> = ({ user, onUpdateUser, initialHistory = false 
             <ArrowRightLeft className="w-4 h-4 text-blue-400" />
           </div>
           <p className="text-slate-400 font-black uppercase text-xs tracking-[0.2em] italic">
-            Tỷ giá: <span className="text-blue-400">5.000đ = 50.000 P</span> (10x Points)
+            Tỷ giá: <span className="text-blue-400">1 VNĐ = 10 P</span>
           </p>
         </div>
       </div>
@@ -160,10 +159,10 @@ const Withdraw: React.FC<Props> = ({ user, onUpdateUser, initialHistory = false 
                   className={`p-8 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-2 shadow-lg active:scale-95 group relative overflow-hidden ${isSelected ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-800 bg-slate-950/50 hover:border-slate-700'} ${isLow ? 'opacity-20 grayscale cursor-not-allowed' : ''}`}
                 >
                   <span className={`text-2xl font-black italic tracking-tighter transition-colors ${isSelected ? 'text-emerald-400' : 'text-white'}`}>
-                    {method === 'game' ? `${getGameDiamondValue(val)} KC` : `${(val/1000).toFixed(0)}k VNĐ`}
+                    {method === 'game' ? `${getGameDiamondValue(val).toLocaleString()} KC` : `${(val/1000).toLocaleString()}kđ`}
                   </span>
                   <span className="text-[10px] text-slate-500 font-black uppercase italic tracking-widest group-hover:text-slate-400 transition-colors">
-                    {pts.toLocaleString()} P
+                    {formatK(pts)} P
                   </span>
                   {isSelected && <div className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,1)] animate-pulse"></div>}
                 </button>
@@ -204,7 +203,7 @@ const Withdraw: React.FC<Props> = ({ user, onUpdateUser, initialHistory = false 
                  <CheckCircle className="w-10 h-10 text-emerald-500" />
               </div>
               <h2 className="text-3xl font-black text-white uppercase italic mb-4">THÀNH CÔNG!</h2>
-              <p className="text-slate-400 font-medium italic mb-4">Yêu cầu rút {selectedMilestone?.toLocaleString()}đ ({pointsNeeded.toLocaleString()} P) đã được gửi. Vui lòng đợi 5-30 phút.</p>
+              <p className="text-slate-400 font-medium italic mb-4">Yêu cầu rút {method === 'game' ? `${getGameDiamondValue(selectedMilestone || 0).toLocaleString()} KC` : `${(selectedMilestone || 0).toLocaleString()}đ`} đã được gửi. Vui lòng đợi 5-30 phút.</p>
               <button onClick={() => setIsSuccess(false)} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-5 rounded-2xl uppercase tracking-widest italic transition-all">OK, TÔI ĐÃ HIỂU</button>
            </div>
         </div>
