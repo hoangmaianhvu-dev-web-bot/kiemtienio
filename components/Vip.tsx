@@ -57,7 +57,8 @@ const Vip: React.FC<Props> = ({ user, onUpdateUser, showGoldSuccess }) => {
   // Fixed handleBuyWithPoints to use showGoldSuccess for a better UI experience
   const handleBuyWithPoints = async () => {
     if (user.balance < selectedPkg.vnd * 10) return alert("Số dư Nova không đủ.");
-    if (!confirm(`XÁC NHẬN: Dùng ${(selectedPkg.vnd * 10).toLocaleString()} P để nâng cấp ${selectedPkg.name}?`)) return;
+    // Custom confirm is async
+    if (!(await confirm(`XÁC NHẬN: Dùng ${(selectedPkg.vnd * 10).toLocaleString()} P để nâng cấp ${selectedPkg.name}?`))) return;
     setIsLoading(true);
     const res = await dbService.upgradeVipTiered(user.id, selectedPkg.vnd);
     setIsLoading(false);

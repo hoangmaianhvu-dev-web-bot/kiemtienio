@@ -25,6 +25,7 @@ import GlobalSearch from './components/GlobalSearch.tsx';
 import Vip from './components/Vip.tsx';
 import NovaNotification, { NovaSecurityModal } from './components/NovaNotification.tsx';
 import GoldModal from './components/GoldModal.tsx';
+import GlobalAlertSystem from './components/GlobalAlertSystem.tsx'; // Import hệ thống alert mới
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -111,6 +112,7 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen flex ${theme === 'dark' ? 'bg-[#06080c]' : 'bg-slate-50'} text-slate-200 transition-colors duration-500`}>
+      <GlobalAlertSystem /> {/* Gắn hệ thống thông báo toàn cục */}
       <NovaNotification notifications={notifications} removeNotification={removeNotification} />
       {securityModal.isOpen && <NovaSecurityModal score={securityModal.score} onClose={() => setSecurityModal({ isOpen: false, score: 0 })} />}
       <GoldModal 

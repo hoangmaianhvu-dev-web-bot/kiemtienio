@@ -31,8 +31,9 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
     }
   }, []);
 
-  const resetTask = () => {
-    if (window.confirm("Hủy bỏ nhiệm vụ hiện tại để chọn cổng khác?")) {
+  const resetTask = async () => {
+    // Custom confirm is async
+    if (await window.confirm("Hủy bỏ nhiệm vụ hiện tại để chọn cổng khác?")) {
       localStorage.removeItem('nova_pending_task');
       setActiveTask(null);
       setInputToken('');

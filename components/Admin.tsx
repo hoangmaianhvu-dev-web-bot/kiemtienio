@@ -88,7 +88,8 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
 
   const handleToggleBan = async (u: User) => {
     const reason = u.isBanned ? '' : prompt('Lý do khóa?') || 'Vi phạm chính sách';
-    if (!u.isBanned && !confirm('KHÓA người dùng này?')) return;
+    // IMPORTANT: Custom confirm is async, must await
+    if (!u.isBanned && !(await confirm('KHÓA người dùng này?'))) return;
     setIsActionLoading(true);
     const res = await dbService.updateUser(u.id, { isBanned: !u.isBanned, banReason: reason });
     if (res.success) { showToast('ADMIN', `Đã cập nhật trạng thái ${u.fullname}`, 'info'); await refreshData(); }
@@ -108,7 +109,8 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
     if (u.id === user.id) return alert("Bạn không thể tự xóa chính mình!");
     if (u.email === 'adminavudev@gmail.com') return alert("Không thể xóa tài khoản Admin hệ thống!");
     
-    if (!confirm(`CẢNH BÁO NGUY HIỂM: Bạn có chắc chắn muốn xóa VĨNH VIỄN hội viên ${u.fullname}? Mọi dữ liệu điểm thưởng, lịch sử rút và VIP của họ sẽ biến mất hoàn toàn!`)) return;
+    // IMPORTANT: Custom confirm is async, must await
+    if (!(await confirm(`CẢNH BÁO NGUY HIỂM: Bạn có chắc chắn muốn xóa VĨNH VIỄN hội viên ${u.fullname}? Mọi dữ liệu điểm thưởng, lịch sử rút và VIP của họ sẽ biến mất hoàn toàn!`))) return;
     
     setIsActionLoading(true);
     const res = await dbService.deleteUser(u.id);
@@ -133,7 +135,8 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
   };
   
   const handleVipAction = async (req: any, status: 'completed' | 'refunded') => {
-    if (!confirm(`Xác nhận ${status === 'completed' ? 'DUYỆT' : 'HỦY'} yêu cầu này?`)) return;
+    // IMPORTANT: Custom confirm is async, must await
+    if (!(await confirm(`Xác nhận ${status === 'completed' ? 'DUYỆT' : 'HỦY'} yêu cầu này?`))) return;
     
     setIsActionLoading(true);
     const res = await dbService.updateVipRequestStatus(req.id, status, req.user_id, req.vip_tier, req.amount_vnd);
