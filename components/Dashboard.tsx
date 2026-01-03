@@ -67,11 +67,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setView }) => {
                   <img 
                     src={ad.imageUrl} 
                     alt={ad.title} 
-                    className="w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-110" 
+                    className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" 
                   />
                   
-                  {/* Hover Overlay Effect (Blue Tint) */}
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-blue-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                  {/* Hover Overlay Effect (Blue Tint + Gradient) */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-900/10 to-blue-900/50 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
 
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-6 md:p-10 transition-all duration-700 group-hover:from-black/95">
                     <span className="text-blue-400 font-black text-[8px] uppercase tracking-widest mb-1 italic transform translate-y-0 transition-transform duration-500 group-hover:-translate-y-1">TÀI TRỢ NOVA</span>

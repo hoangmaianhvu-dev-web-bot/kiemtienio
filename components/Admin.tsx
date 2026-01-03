@@ -7,7 +7,8 @@ import {
   Users, CreditCard, Ticket, Megaphone, ImageIcon, Eye, EyeOff, Trash2, 
   PlusCircle, Search, CheckCircle2, XCircle, Settings, UserMinus, 
   UserPlus, ShieldAlert, Ban, Unlock, Wallet, Activity, TrendingUp, DollarSign,
-  RefreshCcw, UserX, AlertTriangle, Loader2, X, ShieldCheck, Edit, Calendar, Clock
+  RefreshCcw, UserX, AlertTriangle, Loader2, X, ShieldCheck, Edit, Calendar, Clock,
+  Building2, Gamepad2, FileText, ExternalLink
 } from 'lucide-react';
 
 interface AdminProps {
@@ -41,7 +42,7 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   
   const [showAddGc, setShowAddGc] = useState(false);
-  const [editingGc, setEditingGc] = useState<Giftcode | null>(null); // Trạng thái cho Edit Giftcode
+  const [editingGc, setEditingGc] = useState<Giftcode | null>(null);
 
   const [showAddAd, setShowAddAd] = useState(false);
   const [showAddAnn, setShowAddAnn] = useState(false);
@@ -137,41 +138,32 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
   };
 
   const handleWithdrawAction = async (id: string, s: string) => {
+    if (!confirm(`Bạn có chắc chắn muốn ${s === 'completed' ? 'DUYỆT' : 'TỪ CHỐI'} yêu cầu này?`)) return;
+    setIsActionLoading(true);
     await dbService.updateWithdrawalStatus(id, s);
-    showToast('ADMIN', `Đơn rút ${s.toUpperCase()}`, 'info');
+    showToast('ADMIN', `Đã cập nhật trạng thái đơn rút: ${s.toUpperCase()}`, 'info');
     await refreshData();
+    setIsActionLoading(false);
   };
   
   const updatePayment = async (billId: string, status: 'approved' | 'refunded', req?: any) => {
-    let request = req;
-    if (!request && vipRequests) {
-        request = vipRequests.find(v => `#NV${String(v.id).slice(0,4)}` === billId || String(v.id) === billId);
+    if (!req && vipRequests) {
+        req = vipRequests.find(v => String(v.id) === billId);
     }
+    if (!req) return;
 
-    const statusText = status === 'approved' ? 'DUYỆT THÀNH CÔNG' : 'HOÀN TIỀN THÀNH CÔNG';
-    const type = status === 'approved' ? 'success' : 'info';
+    if (!(await confirm(`Xác nhận ${status === 'approved' ? 'DUYỆT' : 'HOÀN TIỀN'} đơn nạp VIP của ${req.user_name}?`))) return;
     
-    if (request) {
-        if (!(await confirm(`Xác nhận ${status === 'approved' ? 'DUYỆT' : 'HOÀN'} đơn ${billId}?`))) return;
-        setIsActionLoading(true);
-        const dbStatus = status === 'approved' ? 'completed' : 'refunded';
-        const res = await dbService.updateVipRequestStatus(request.id, dbStatus, request.user_id, request.vip_tier, request.amount_vnd);
-        setIsActionLoading(false);
-        
-        if (res.success) {
-            if((window as any).novaNotify) {
-                (window as any).novaNotify(type, 'THANH TOÁN', `Đơn hàng ${billId} đã được ${statusText}!`);
-            }
-            await refreshData();
-        } else {
-            if((window as any).novaNotify) {
-                (window as any).novaNotify('error', 'LỖI', res.message || 'Có lỗi xảy ra');
-            }
-        }
+    setIsActionLoading(true);
+    const dbStatus = status === 'approved' ? 'completed' : 'refunded';
+    const res = await dbService.updateVipRequestStatus(req.id, dbStatus, req.user_id, req.vip_tier, req.amount_vnd);
+    setIsActionLoading(false);
+    
+    if (res.success) {
+        showToast('ADMIN', `Đã xử lý đơn nạp VIP: ${status.toUpperCase()}`, 'success');
+        await refreshData();
     } else {
-        if((window as any).novaNotify) {
-            (window as any).novaNotify(type, 'THANH TOÁN', `Đơn hàng ${billId} đã được ${statusText}! (Demo)`);
-        }
+        alert(res.message);
     }
   };
 
@@ -180,7 +172,6 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
     if (!newGc.code || !newGc.amount) return alert("Nhập đủ thông tin.");
     setIsActionLoading(true);
     
-    // Định dạng ngày ISO cho DB
     const start = newGc.startDate ? new Date(newGc.startDate).toISOString() : undefined;
     const end = newGc.endDate ? new Date(newGc.endDate).toISOString() : undefined;
 
@@ -233,11 +224,9 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
     }
   };
 
-  // Helper chuyển đổi ISO sang format input datetime-local (YYYY-MM-DDThh:mm)
   const formatDateForInput = (isoString?: string) => {
     if (!isoString) return '';
     const date = new Date(isoString);
-    // Cần chỉnh về local time zone để hiển thị đúng trên input
     const offset = date.getTimezoneOffset() * 60000;
     const localISOTime = new Date(date.getTime() - offset).toISOString().slice(0, 16);
     return localISOTime;
@@ -327,8 +316,92 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
             </div>
           </div>
         )}
-        
-        {/* ... (Các tab withdrawals, payments giữ nguyên) ... */}
+
+        {tab === 'withdrawals' && (
+          <div className="space-y-8">
+            <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">DUYỆT YÊU CẦU RÚT TIỀN</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead><tr className="text-[10px] font-black text-slate-500 uppercase italic border-b border-white/5 tracking-[0.2em]"><th className="px-6 py-6">Thời gian</th><th className="px-6 py-6">Hội viên</th><th className="px-6 py-6">Loại & Số tiền</th><th className="px-6 py-6">Chi tiết nhận</th><th className="px-6 py-6 text-right">Xử lý</th></tr></thead>
+                <tbody className="divide-y divide-white/5">
+                  {withdrawals.length === 0 ? <tr><td colSpan={5} className="text-center py-10 text-slate-600 font-bold italic">Chưa có yêu cầu rút tiền nào</td></tr> :
+                    withdrawals.map(w => (
+                    <tr key={w.id} className="text-xs hover:bg-white/[0.03] transition-all">
+                      <td className="px-6 py-7 text-slate-500 font-bold">{new Date(w.createdAt).toLocaleString('vi-VN')}</td>
+                      <td className="px-6 py-7">
+                        <div className="font-black text-white uppercase italic">{w.userName}</div>
+                        <div className="text-[9px] text-blue-500 mt-1">ID: #{w.userId}</div>
+                      </td>
+                      <td className="px-6 py-7">
+                        <div className="flex items-center gap-2 mb-1">
+                          {w.type === 'bank' ? <Building2 size={14} className="text-emerald-500" /> : <Gamepad2 size={14} className="text-purple-500" />}
+                          <span className={`font-black uppercase italic ${w.type === 'bank' ? 'text-emerald-500' : 'text-purple-500'}`}>{w.type === 'bank' ? 'ATM' : 'GAME'}</span>
+                        </div>
+                        <div className="text-lg font-black text-white italic">{w.amount.toLocaleString()}đ</div>
+                      </td>
+                      <td className="px-6 py-7 max-w-xs break-words text-slate-300 font-medium italic">{w.details}</td>
+                      <td className="px-6 py-7 text-right">
+                         {w.status === 'pending' ? (
+                           <div className="flex justify-end gap-2">
+                              <button onClick={() => handleWithdrawAction(w.id, 'completed')} className="p-3 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl shadow-lg shadow-emerald-500/20 transition-all"><CheckCircle2 size={18} /></button>
+                              <button onClick={() => handleWithdrawAction(w.id, 'rejected')} className="p-3 bg-red-500 hover:bg-red-400 text-white rounded-xl shadow-lg shadow-red-500/20 transition-all"><XCircle size={18} /></button>
+                           </div>
+                         ) : (
+                           <span className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase italic border ${w.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
+                             {w.status === 'completed' ? 'ĐÃ DUYỆT' : 'TỪ CHỐI'}
+                           </span>
+                         )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {tab === 'payments' && (
+          <div className="space-y-8">
+            <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">DUYỆT NẠP VIP (CHUYỂN KHOẢN)</h3>
+            <div className="overflow-x-auto">
+               <table className="w-full text-left">
+                  <thead><tr className="text-[10px] font-black text-slate-500 uppercase italic border-b border-white/5 tracking-[0.2em]"><th className="px-6 py-6">Thời gian</th><th className="px-6 py-6">Người gửi</th><th className="px-6 py-6">Gói VIP</th><th className="px-6 py-6">Bill</th><th className="px-6 py-6 text-right">Xử lý</th></tr></thead>
+                  <tbody className="divide-y divide-white/5">
+                    {vipRequests.length === 0 ? <tr><td colSpan={5} className="text-center py-10 text-slate-600 font-bold italic">Chưa có yêu cầu nạp tiền nào</td></tr> :
+                     vipRequests.map((v) => (
+                      <tr key={v.id} className="text-xs hover:bg-white/[0.03] transition-all">
+                        <td className="px-6 py-7 text-slate-500 font-bold">{new Date(v.created_at).toLocaleString('vi-VN')}</td>
+                        <td className="px-6 py-7">
+                          <div className="font-black text-white uppercase italic">{v.user_name}</div>
+                          <div className="text-[9px] text-amber-500 mt-1 font-bold">{v.amount_vnd.toLocaleString()} VND</div>
+                        </td>
+                        <td className="px-6 py-7"><span className="px-3 py-1 bg-slate-800 rounded text-[10px] font-black uppercase text-white border border-white/10">{v.vip_tier}</span></td>
+                        <td className="px-6 py-7">
+                           {v.bill_url ? (
+                             <button onClick={() => setViewBill(v.bill_url)} className="flex items-center gap-2 text-blue-400 hover:text-blue-300 font-bold italic bg-blue-500/10 px-3 py-2 rounded-lg border border-blue-500/20">
+                               <FileText size={14} /> Xem Bill
+                             </button>
+                           ) : <span className="text-slate-600 italic">Không có ảnh</span>}
+                        </td>
+                        <td className="px-6 py-7 text-right">
+                           {v.status === 'pending' ? (
+                             <div className="flex justify-end gap-2">
+                                <button onClick={() => updatePayment(v.id, 'approved', v)} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl shadow-lg shadow-emerald-500/20 transition-all font-black uppercase text-[9px] italic flex items-center gap-2"><CheckCircle2 size={14} /> DUYỆT</button>
+                                <button onClick={() => updatePayment(v.id, 'refunded', v)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-white/10 transition-all font-black uppercase text-[9px] italic flex items-center gap-2"><RefreshCcw size={14} /> HOÀN TIỀN</button>
+                             </div>
+                           ) : (
+                             <span className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase italic border ${v.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-slate-800 text-slate-400 border-white/10'}`}>
+                               {v.status === 'completed' ? 'ĐÃ DUYỆT' : 'ĐÃ HOÀN TIỀN'}
+                             </span>
+                           )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+               </table>
+            </div>
+          </div>
+        )}
 
         {tab === 'giftcodes' && (
           <div className="space-y-8">
