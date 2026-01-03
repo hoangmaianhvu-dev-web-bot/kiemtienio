@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User, WithdrawalRequest } from '../types.ts';
 import { WITHDRAW_MILESTONES, RATE_VND_TO_POINT, formatK, DIAMOND_EXCHANGE, QUAN_HUY_EXCHANGE } from '../constants.tsx';
 import { dbService } from '../services/dbService.ts';
-import { Building2, Gamepad2, Wallet, CheckCircle, Loader2, History, ArrowRightLeft } from 'lucide-react';
+import { Building2, Gamepad2, Wallet, CheckCircle, Loader2, History, ArrowRightLeft, ShieldCheck, Lock } from 'lucide-react';
 
 interface Props {
   user: User;
@@ -61,7 +61,6 @@ const Withdraw: React.FC<Props> = ({ user, onUpdateUser, initialHistory = false,
     setIsProcessing(false);
     
     if (res.success) {
-      // Hiển thị Gold Modal sang trọng
       showGoldSuccess(
         "GỬI YÊU CẦU THÀNH CÔNG",
         `Yêu cầu rút thưởng trị giá ${selectedMilestone.toLocaleString()}đ đã được gửi tới hệ thống. Quà tặng sẽ được xử lý trong vòng 5-30 phút.`
@@ -70,12 +69,9 @@ const Withdraw: React.FC<Props> = ({ user, onUpdateUser, initialHistory = false,
       setMethod(null);
       setSelectedMilestone(null);
       
-      // Fetch fresh user data from server (where balance was deducted)
       const updatedUser = await dbService.getCurrentUser();
-      // Update local state ONLY, do not persist back to DB to avoid overwriting the server transaction
       if(updatedUser) onUpdateUser(updatedUser, false);
 
-      // Refresh history
       const data = await dbService.getWithdrawals(user.id);
       setHistory(data);
     } else {
@@ -150,7 +146,7 @@ const Withdraw: React.FC<Props> = ({ user, onUpdateUser, initialHistory = false,
         <button onClick={() => { setMethod('game'); setSelectedMilestone(null); }} className={`glass-card p-12 rounded-[3.5rem] border-4 transition-all shadow-xl flex flex-col items-center text-center gap-4 group ${method === 'game' ? 'border-purple-500 bg-purple-500/10' : 'border-transparent hover:border-slate-800'}`}>
           <div className="p-6 bg-purple-600/10 rounded-3xl group-hover:scale-110 transition-transform"><Gamepad2 className="w-12 h-12 text-purple-400" /></div>
           <h3 className="text-3xl font-black text-white uppercase italic tracking-tighter">Rút Thưởng Game</h3>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest italic">Nhận Quân Huy - Kim Cương Miễn Phí 100%</p>
+          <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest italic animate-pulse">NGUỒN NẠP NAPTHE.VN (SẠCH 100%)</p>
         </button>
       </div>
 
@@ -200,6 +196,27 @@ const Withdraw: React.FC<Props> = ({ user, onUpdateUser, initialHistory = false,
               );
             })}
           </div>
+
+          {/* SECURITY GUARANTEE BOX FOR GAME METHOD */}
+          {method === 'game' && (
+             <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-[2.5rem] p-8 flex flex-col md:flex-row gap-6 items-center">
+                <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center border border-emerald-500/20 shrink-0">
+                   <ShieldCheck className="w-8 h-8 text-emerald-500" />
+                </div>
+                <div className="flex-1 space-y-2">
+                   <h4 className="text-lg font-black text-white uppercase italic tracking-tight">CAM KẾT BẢO HÀNH UY TÍN 100%</h4>
+                   <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <li className="flex items-center gap-2 text-xs text-slate-400 font-bold uppercase"><CheckCircle className="w-4 h-4 text-emerald-500" /> Nguồn nạp chính hãng từ Napthe.vn</li>
+                      <li className="flex items-center gap-2 text-xs text-slate-400 font-bold uppercase"><CheckCircle className="w-4 h-4 text-emerald-500" /> Không bao giờ bị Ban Acc</li>
+                      <li className="flex items-center gap-2 text-xs text-slate-400 font-bold uppercase"><CheckCircle className="w-4 h-4 text-emerald-500" /> Không âm Kim Cương/Quân Huy</li>
+                      <li className="flex items-center gap-2 text-xs text-slate-400 font-bold uppercase"><CheckCircle className="w-4 h-4 text-emerald-500" /> Nạp qua ID - Không cần mật khẩu</li>
+                   </ul>
+                </div>
+                <div className="hidden md:block">
+                   <Lock className="w-12 h-12 text-emerald-500/20" />
+                </div>
+             </div>
+          )}
           
           <div className="space-y-6">
             <div className="flex items-center justify-between px-6">

@@ -5,7 +5,7 @@ import { dbService } from '../services/dbService.ts';
 import { SLOGAN, COPYRIGHT, SOCIAL_LINKS } from '../constants.tsx';
 import { 
   Sparkles, Loader2, LogIn, UserPlus, Eye, EyeOff, Mail, Lock, User as UserIcon,
-  RefreshCw, Send, CheckCircle2, ChevronLeft
+  RefreshCw, Send, CheckCircle2, ChevronLeft, ShieldCheck
 } from 'lucide-react';
 
 interface LoginProps {
@@ -27,7 +27,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [error, setError] = useState('');
   const [showPass, setShowPass] = useState(false);
   
-  // Ads Logic
   const [ads, setAds] = useState<AdBanner[]>([]);
   const [currentAdIndex, setCurrentAdIndex] = useState(0);
 
@@ -35,7 +34,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     dbService.getAds().then(setAds);
   }, []);
 
-  // Auto cycle ads
   useEffect(() => {
     if (ads.length <= 1) return;
     const timer = setInterval(() => {
@@ -66,7 +64,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
   const handleRequestReset = () => {
     if (!email.trim()) return setError("Vui lòng nhập email trước.");
-    // Chuyển hướng sang Telegram Bot để lấy mã
     window.open(SOCIAL_LINKS.telegramBot, '_blank');
     setView('reset');
   };
@@ -92,7 +89,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#06080c] p-6 relative overflow-hidden">
-      {/* Background glow */}
       <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600/5 blur-[120px] rounded-full"></div>
       <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/5 blur-[100px] rounded-full"></div>
       
@@ -106,12 +102,16 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             <h2 className="text-4xl font-black text-white leading-tight uppercase italic tracking-tighter">
               HỆ THỐNG <br /> <span className="nova-gradient">KIẾM TIỀN ONLINE</span>
             </h2>
-            <p className="text-slate-500 text-sm font-medium italic leading-relaxed">{SLOGAN}</p>
+            <div className="space-y-2">
+               <p className="text-slate-500 text-sm font-medium italic leading-relaxed">{SLOGAN}</p>
+               <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-3 py-1.5 rounded-lg w-fit">
+                  <ShieldCheck size={14} /> Nguồn nạp sạch 100% từ Napthe.vn
+               </div>
+            </div>
           </div>
 
           <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
              <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-3 italic">Tài trợ Nova</p>
-             {/* Changed to aspect-[16/9] and added object-fill to ensure full visibility */}
              <div className="relative w-full aspect-[16/9] rounded-xl overflow-hidden group cursor-pointer bg-slate-900 shadow-inner border border-white/10">
                {ads.length > 0 ? (
                  ads.map((ad, idx) => (
@@ -127,7 +127,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                         className="w-full h-full object-fill transition-transform duration-700 ease-out group-hover:scale-105" 
                         alt={ad.title} 
                      />
-                     {/* Overlay gradient similar to dashboard */}
                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                    </a>
                  ))

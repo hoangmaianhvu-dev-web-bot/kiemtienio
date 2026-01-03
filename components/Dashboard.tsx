@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Announcement, AdBanner } from '../types.ts';
 import { dbService } from '../services/dbService.ts';
-import { Sparkles, Star, TrendingUp, Zap, Clock, CreditCard, ArrowRight, Megaphone, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Sparkles, Star, TrendingUp, Zap, Clock, CreditCard, ArrowRight, Megaphone, ShieldCheck, Gem, Lock } from 'lucide-react';
 import { formatK } from '../constants.tsx';
 
 interface DashboardProps {
@@ -31,7 +31,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setView }) => {
 
   const marqueeContent = announcements.length > 0 
     ? announcements.map(ann => `✦ ${ann.title.toUpperCase()}: ${ann.content}`).join("    |    ")
-    : "CHÀO MỪNG ĐẾN VỚI DIAMOND NOVA - HỆ THỐNG NHẬN QUÂN HUY VÀ KIM CƯƠNG MIỄN PHÍ HÀNG ĐẦU VIỆT NAM    |    SỰ KIỆN ĐUA TOP NHẬN QUÀ KHỦNG ĐANG DIỄN RA!";
+    : "CHÀO MỪNG ĐẾN VỚI DIAMOND NOVA - HỆ THỐNG NHẬN QUÂN HUY VÀ KIM CƯƠNG MIỄN PHÍ HÀNG ĐẦU VIỆT NAM    |    CAM KẾT NGUỒN NẠP SẠCH 100% TỪ NAPTHE.VN - KHÔNG BAN ACC - KHÔNG ÂM TIỀN";
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
@@ -43,7 +43,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setView }) => {
             <span className="text-[10px] font-black text-white uppercase italic tracking-widest px-10">
               {marqueeContent}
             </span>
-            {/* Duplicate content for seamless looping */}
             <span className="text-[10px] font-black text-white uppercase italic tracking-widest px-10">
               {marqueeContent}
             </span>
@@ -69,17 +68,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setView }) => {
                     alt={ad.title} 
                     className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" 
                   />
-                  
-                  {/* Hover Overlay Effect (Blue Tint + Gradient) */}
                   <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-900/10 to-blue-900/50 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-6 md:p-10 transition-all duration-700 group-hover:from-black/95">
                     <span className="text-blue-400 font-black text-[8px] uppercase tracking-widest mb-1 italic transform translate-y-0 transition-transform duration-500 group-hover:-translate-y-1">TÀI TRỢ NOVA</span>
                     <h3 className="text-white text-lg md:text-2xl font-black italic uppercase tracking-tighter leading-none transform translate-y-0 transition-transform duration-500 group-hover:-translate-y-1">{ad.title}</h3>
                   </div>
                 </a>
               ))}
-              {/* Dots navigation */}
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
                 {ads.map((_, idx) => (
                   <button 
@@ -110,7 +105,32 @@ const Dashboard: React.FC<DashboardProps> = ({ user, setView }) => {
         </div>
       </div>
 
-      {/* 3. Bảng thông báo lớn bên trên bảng số dư */}
+      {/* SECTION: CAM KẾT UY TÍN (NEW) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+         <div className="glass-card p-6 rounded-[2rem] border border-emerald-500/20 bg-emerald-600/5 flex items-center gap-4">
+            <div className="p-3 bg-emerald-500/20 rounded-xl text-emerald-500"><Gem size={24} /></div>
+            <div>
+               <h4 className="text-xs font-black text-white uppercase italic">NGUỒN SẠCH 100%</h4>
+               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide mt-1">Nạp trực tiếp từ Napthe.vn</p>
+            </div>
+         </div>
+         <div className="glass-card p-6 rounded-[2rem] border border-blue-500/20 bg-blue-600/5 flex items-center gap-4">
+            <div className="p-3 bg-blue-500/20 rounded-xl text-blue-500"><ShieldCheck size={24} /></div>
+            <div>
+               <h4 className="text-xs font-black text-white uppercase italic">BẢO HÀNH TRỌN ĐỜI</h4>
+               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide mt-1">Không Ban Acc - Không Âm Tiền</p>
+            </div>
+         </div>
+         <div className="glass-card p-6 rounded-[2rem] border border-purple-500/20 bg-purple-600/5 flex items-center gap-4">
+            <div className="p-3 bg-purple-500/20 rounded-xl text-purple-500"><Lock size={24} /></div>
+            <div>
+               <h4 className="text-xs font-black text-white uppercase italic">UY TÍN TUYỆT ĐỐI</h4>
+               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide mt-1">Hệ thống nạp tự động qua ID</p>
+            </div>
+         </div>
+      </div>
+
+      {/* 3. Bảng thông báo lớn */}
       <div className="glass-card p-8 rounded-[3rem] border border-white/5 relative overflow-hidden bg-gradient-to-br from-indigo-600/10 via-transparent to-transparent">
         <Megaphone className="absolute -bottom-6 -right-6 w-32 h-32 text-white/5 -rotate-12 pointer-events-none" />
         <div className="flex items-center gap-4 mb-4">

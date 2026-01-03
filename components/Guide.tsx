@@ -122,11 +122,15 @@ const Guide: React.FC = () => {
               <ul className="space-y-4">
                 <li className="flex gap-3 text-sm text-slate-400 font-medium italic">
                   <CheckCircle2 className="w-5 h-5 text-purple-500 shrink-0" />
-                  Hỗ trợ quy đổi trực tiếp sang Quân Huy (Liên Quân) hoặc Kim Cương (Free Fire).
+                  <span className="text-emerald-400 font-bold">NGUỒN SẠCH 100%:</span> Nạp trực tiếp qua cổng <b className="text-white">Napthe.vn</b> (Garena).
                 </li>
                 <li className="flex gap-3 text-sm text-slate-400 font-medium italic">
                   <CheckCircle2 className="w-5 h-5 text-purple-500 shrink-0" />
-                  Yêu cầu cung cấp chính xác ID Game trong hồ sơ cá nhân.
+                  Cam kết <b className="text-white">KHÔNG BAN ACC</b>, <b className="text-white">KHÔNG ÂM TIỀN</b> game.
+                </li>
+                <li className="flex gap-3 text-sm text-slate-400 font-medium italic">
+                  <CheckCircle2 className="w-5 h-5 text-purple-500 shrink-0" />
+                  Chỉ cần nhập ID Game (không cần mật khẩu).
                 </li>
               </ul>
             </div>

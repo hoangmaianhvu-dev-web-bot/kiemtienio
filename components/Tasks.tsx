@@ -5,7 +5,7 @@ import { TASK_RATES, formatK, DAILY_TASK_LIMIT, VIP_TASK_LIMIT } from '../consta
 import { dbService } from '../services/dbService.ts';
 import { openTaskLink } from '../services/taskService.ts';
 import { 
-  Zap, Loader2, RefreshCw, LayoutGrid, Crown, ShieldAlert, MousePointer2, AlertTriangle, XCircle
+  Zap, Loader2, RefreshCw, LayoutGrid, Crown, ShieldAlert, MousePointer2, AlertTriangle, XCircle, Star, ArrowUp
 } from 'lucide-react';
 
 interface Props {
@@ -32,7 +32,6 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
   }, []);
 
   const resetTask = async () => {
-    // Custom confirm is async
     if (await window.confirm("Hủy bỏ nhiệm vụ hiện tại để chọn cổng khác?")) {
       localStorage.removeItem('nova_pending_task');
       setActiveTask(null);
@@ -49,7 +48,7 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
     setGeneratingGate(id);
     const token = `NOVA-${Math.random().toString(36).substr(2, 8).toUpperCase()}`;
     
-    // TÍNH TOÁN ĐIỂM THƯỞNG: Nếu là VIP thì nhân 1.5, thường thì giữ nguyên
+    // TÍNH TOÁN ĐIỂM THƯỞNG: Nếu là VIP thì nhân 1.5
     const pointsReward = isVip ? Math.floor(gate.reward * 1.5) : gate.reward;
 
     const taskData = { gateId: id, gateName: gate.name, points: pointsReward, token, timestamp: Date.now() };
@@ -133,18 +132,30 @@ const Tasks: React.FC<Props> = ({ user, onUpdateUser }) => {
           const currentCount = user.taskCounts[gate.name] || 0;
           const isFull = currentCount >= gate.limit;
           
-          // Hiển thị thưởng dự kiến (x1.5 nếu là VIP)
-          const displayReward = isVip ? Math.floor(gate.reward * 1.5) : gate.reward;
+          const finalReward = isVip ? Math.floor(gate.reward * 1.5) : gate.reward;
 
           return (
             <div key={id} className={`glass-card p-8 rounded-[2.5rem] border transition-all ${isFull ? 'grayscale opacity-30' : 'border-white/5 bg-slate-900/40 hover:bg-slate-900/60 hover:scale-105'}`}>
-               <div className="flex justify-between mb-6">
+               <div className="flex justify-between items-center mb-6">
                   <h4 className="font-black text-white italic uppercase tracking-tighter">{gate.name}</h4>
-                  {isVip && <span className="bg-amber-500 text-black text-[8px] font-black px-2 py-0.5 rounded italic">+50% VIP</span>}
+                  {isVip && (
+                    <div className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg">
+                      <ArrowUp size={10} className="text-amber-500" />
+                      <span className="text-[9px] font-black text-amber-500 italic">+50% VIP</span>
+                    </div>
+                  )}
                </div>
-               <div className="flex items-center justify-between mb-8">
-                  <span className="text-[10px] text-slate-500 font-bold uppercase">Thưởng</span>
-                  <span className={`text-2xl font-black italic tracking-tighter ${isVip ? 'text-amber-500' : 'text-emerald-500'}`}>+{formatK(displayReward)} P</span>
+               <div className="flex flex-col mb-8">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase mb-1">Tổng Thưởng</span>
+                  <div className="flex items-end gap-2">
+                     <span className={`text-2xl font-black italic tracking-tighter ${isVip ? 'text-amber-500' : 'text-emerald-500'}`}>+{formatK(finalReward)} P</span>
+                     {isVip && (
+                       <span className="text-xs text-slate-600 font-bold line-through italic mb-1 decoration-slate-600 decoration-2">
+                         {formatK(gate.reward)}
+                       </span>
+                     )}
+                  </div>
+                  {isVip && <span className="text-[9px] text-amber-500/60 font-bold italic mt-1">Đã bao gồm thưởng VIP</span>}
                </div>
                <button 
                  onClick={() => startTask(id)}
