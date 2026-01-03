@@ -7,7 +7,7 @@ import { Building2, Gamepad2, Wallet, CheckCircle, Loader2, History, ArrowRightL
 
 interface Props {
   user: User;
-  onUpdateUser: (user: User) => void;
+  onUpdateUser: (user: User, persist?: boolean) => void;
   initialHistory?: boolean;
   showGoldSuccess: (title: string, description: string) => void;
 }
@@ -70,10 +70,10 @@ const Withdraw: React.FC<Props> = ({ user, onUpdateUser, initialHistory = false,
       setMethod(null);
       setSelectedMilestone(null);
       
-      // Refresh user balance visually (optimistic or re-fetch)
-      // The balance is updated on server, let's fetch user again or just notify parent
+      // Fetch fresh user data from server (where balance was deducted)
       const updatedUser = await dbService.getCurrentUser();
-      if(updatedUser) onUpdateUser(updatedUser);
+      // Update local state ONLY, do not persist back to DB to avoid overwriting the server transaction
+      if(updatedUser) onUpdateUser(updatedUser, false);
 
       // Refresh history
       const data = await dbService.getWithdrawals(user.id);

@@ -186,7 +186,7 @@ export const dbService = {
     const gc = mapGiftcode(gcRaw);
     if (gc.usedBy.includes(userId)) return { success: false, message: 'Bạn đã sử dụng mã này rồi.' };
     
-    if (gc.maxUses <= 0 || gc.usedBy.length >= gc.maxUses) {
+    if (gc.maxUses > 0 && gc.usedBy.length >= gc.maxUses) {
       return { success: false, message: 'Mã đã đạt giới hạn lượt sử dụng.' };
     }
 
@@ -200,7 +200,10 @@ export const dbService = {
     
     if (updErr) return { success: false, message: 'Lỗi hệ thống khi cộng điểm.' };
 
-    await supabase.from('giftcodes').update({ used_by: [...gc.usedBy, userId] }).eq('code', gc.code);
+    // Update used_by safely
+    const newUsedBy = [...(gc.usedBy || []), userId];
+    await supabase.from('giftcodes').update({ used_by: newUsedBy }).eq('id', gcRaw.id);
+    
     return { success: true, amount: gc.amount, message: `Thành công! Nhận ${gc.amount.toLocaleString()} P.` };
   },
 
@@ -292,7 +295,6 @@ export const dbService = {
   },
 
   addWithdrawal: async (request: any) => {
-    // Ánh xạ sang snake_case của Supabase
     const dbData = {
       user_id: request.userId,
       user_name: request.userName,
@@ -314,8 +316,6 @@ export const dbService = {
           }).eq('id', request.userId);
         }
         
-        // Thông báo hệ thống cho Admin hòm thư 'all'
-        // Sử dụng try-catch để tránh crash nếu insert notification lỗi
         try {
           await supabase.from('notifications').insert([{
              user_id: 'all',

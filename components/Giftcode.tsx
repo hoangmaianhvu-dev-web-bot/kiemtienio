@@ -12,7 +12,7 @@ import {
 
 interface Props {
   user: User;
-  onUpdateUser: (user: User) => void;
+  onUpdateUser: (user: User, persist?: boolean) => void;
   showGoldSuccess: (title: string, description: string) => void;
 }
 
@@ -22,6 +22,7 @@ const Giftcode: React.FC<Props> = ({ user, onUpdateUser, showGoldSuccess }) => {
   const [msg, setMsg] = useState('');
 
   const handleClaim = async () => {
+    // Clean input code robustly
     const cleanCode = code.trim().toUpperCase().replace(/\s+/g, '');
     if (!cleanCode || status === 'loading') return;
     setStatus('loading');
@@ -30,11 +31,10 @@ const Giftcode: React.FC<Props> = ({ user, onUpdateUser, showGoldSuccess }) => {
       const res = await dbService.claimGiftcode(user.id, cleanCode);
 
       if (res.success) {
-        const updatedUser = { 
-          ...user, 
-          balance: user.balance + Number(res.amount || 0) 
-        };
-        onUpdateUser(updatedUser);
+        // Fetch fresh user data from server (where balance was incremented)
+        const updatedUser = await dbService.getCurrentUser();
+        // Update local state ONLY, do not persist to DB
+        if(updatedUser) onUpdateUser(updatedUser, false);
         
         setStatus('success');
         setMsg(res.message);
@@ -59,6 +59,7 @@ const Giftcode: React.FC<Props> = ({ user, onUpdateUser, showGoldSuccess }) => {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Auto format uppercase and remove spaces while typing
     const val = e.target.value.toUpperCase().replace(/\s+/g, '');
     setCode(val);
   };

@@ -12,8 +12,7 @@ import {
 
 interface Props {
   user: User;
-  onUpdateUser: (user: User) => void;
-  // Add missing prop type to fix type error in App.tsx
+  onUpdateUser: (user: User, persist?: boolean) => void;
   showGoldSuccess: (title: string, description: string) => void;
 }
 
@@ -61,8 +60,11 @@ const Vip: React.FC<Props> = ({ user, onUpdateUser, showGoldSuccess }) => {
     const res = await dbService.upgradeVipTiered(user.id, selectedPkg.vnd);
     setIsLoading(false);
     if (res.success) {
+      // Fetch fresh data from DB (where balance is already deducted)
       const updated = await dbService.getCurrentUser();
-      if (updated) onUpdateUser(updated);
+      // Update local state, do not persist to DB
+      if (updated) onUpdateUser(updated, false);
+      
       setShowDepositModal(false);
       refreshData();
       

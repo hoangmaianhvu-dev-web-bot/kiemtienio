@@ -90,14 +90,20 @@ const App: React.FC = () => {
 
   const logout = () => { dbService.logout(); setUser(null); setCurrentView(AppView.DASHBOARD); showToast('Hẹn gặp lại', 'Đã đăng xuất an toàn.', 'info'); };
 
-  const updateUser = async (updated: User) => { 
+  // Cập nhật hàm updateUser: thêm tham số persist để kiểm soát việc ghi vào DB
+  const updateUser = async (updated: User, persist: boolean = true) => { 
     setUser(updated); 
-    const res = await dbService.updateUser(updated.id, updated);
-    if (!res.success) {
-        showToast('LỖI CẬP NHẬT', res.message || 'Không thể lưu thay đổi.', 'error');
-        loadSession(); 
+    
+    if (persist) {
+        const res = await dbService.updateUser(updated.id, updated);
+        if (!res.success) {
+            showToast('LỖI CẬP NHẬT', res.message || 'Không thể lưu thay đổi.', 'error');
+            loadSession(); // Revert nếu lỗi
+            return res;
+        }
+        return res;
     }
-    return res;
+    return { success: true };
   };
 
   const vipExpiringSoon = useMemo(() => {
