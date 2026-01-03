@@ -74,22 +74,44 @@ const App: React.FC = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
+    // Sync User Data
     const userChannel = supabase.channel('user-sync').on('postgres_changes', { event: '*', schema: 'public', table: 'users_data' }, (payload) => {
       if (user && ((payload.new as any)?.id === user.id || (payload.old as any)?.id === user.id)) loadSession();
+    }).subscribe();
+
+    // Sync Notifications (For Admin & User)
+    const notifChannel = supabase.channel('notif-sync').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+        const newNotif = payload.new as any;
+        // Notify if it's for this user or for 'all' (System messages)
+        if (user && (newNotif.user_id === user.id || newNotif.user_id === 'all')) {
+           setHasNewNotif(true);
+           showToast(newNotif.title, newNotif.content, 'info');
+        }
     }).subscribe();
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       supabase.removeChannel(userChannel);
+      supabase.removeChannel(notifChannel);
     };
   }, [user?.id]);
 
   const logout = () => { dbService.logout(); setUser(null); setCurrentView(AppView.DASHBOARD); showToast('Hẹn gặp lại', 'Đã đăng xuất an toàn.', 'info'); };
 
+  // Update user with return value for error handling
   const updateUser = async (updated: User) => { 
+    // Optimistic update locally
     setUser(updated); 
-    await dbService.updateUser(updated.id, updated); 
+    // Persist to DB and return result
+    const res = await dbService.updateUser(updated.id, updated);
+    // If failed, revert or warn (though here we just return result for caller to handle)
+    if (!res.success) {
+        showToast('LỖI CẬP NHẬT', res.message || 'Không thể lưu thay đổi.', 'error');
+        // Re-fetch to revert changes
+        loadSession(); 
+    }
+    return res;
   };
 
   const vipExpiringSoon = useMemo(() => {
@@ -180,7 +202,10 @@ const App: React.FC = () => {
                     <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Số dư Nova</span>
                     <span className={`text-lg font-black italic tracking-tighter ${user.isVip ? 'text-amber-400' : 'text-emerald-500'}`}>{formatK(user.balance)} P</span>
                   </div>
-                  <button onClick={() => setCurrentView(AppView.NOTIFICATIONS)} className="p-3 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-all text-slate-400"><Bell size={18} /></button>
+                  <button onClick={() => { setCurrentView(AppView.NOTIFICATIONS); setHasNewNotif(false); }} className={`p-3 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-all ${hasNewNotif ? 'text-blue-400 animate-pulse' : 'text-slate-400'}`}>
+                    <Bell size={18} />
+                    {hasNewNotif && <span className="absolute top-4 right-4 w-2 h-2 bg-red-500 rounded-full"></span>}
+                  </button>
               </div>
            </div>
         </header>

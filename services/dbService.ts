@@ -54,6 +54,17 @@ const mapGiftcode = (g: any): Giftcode => ({
   isActive: Boolean(g.is_active)
 });
 
+const mapWithdrawal = (w: any): WithdrawalRequest => ({
+  id: w.id,
+  userId: w.user_id,
+  userName: w.user_name,
+  amount: Number(w.amount),
+  type: w.type,
+  status: w.status,
+  details: w.details,
+  createdAt: w.created_at
+});
+
 export const dbService = {
   login: async (email: string, pass: string, rememberMe: boolean = false) => {
     const cleanEmail = email.trim().toLowerCase();
@@ -134,23 +145,14 @@ export const dbService = {
   },
 
   deleteUser: async (userId: string) => {
-    // 1. Xóa tất cả dữ liệu phụ thuộc trước để tránh lỗi Foreign Key
-    // Trong môi trường thực tế, DB nên được cấu hình ON DELETE CASCADE.
     await Promise.all([
       supabase.from('withdrawals').delete().eq('user_id', userId),
       supabase.from('notifications').delete().eq('user_id', userId),
       supabase.from('vip_requests').delete().eq('user_id', userId)
     ]);
 
-    // 2. Thực hiện xóa hội viên và lấy số dòng bị ảnh hưởng
     const { error, status } = await supabase.from('users_data').delete().eq('id', userId);
-    
-    if (error) {
-      console.error("Supabase Delete Error:", error);
-      return { success: false, message: `Lỗi máy chủ: ${error.message}` };
-    }
-
-    // Nếu status là 204 hoặc 200 mà không lỗi, Supabase đã thực thi lệnh thành công
+    if (error) return { success: false, message: `Lỗi máy chủ: ${error.message}` };
     return { success: true, message: 'Hội viên đã được xóa khỏi hệ thống.' };
   },
 
@@ -219,23 +221,29 @@ export const dbService = {
 
   createVipDepositRequest: async (req: any) => {
     const { error } = await supabase.from('vip_requests').insert([req]);
+    if (!error) {
+        // Thông báo cho Admin (Gửi tới hòm thư chung 'all')
+        await supabase.from('notifications').insert([{
+           user_id: 'all',
+           title: 'YÊU CẦU NẠP VIP MỚI',
+           content: `Hội viên ${req.user_name} vừa gửi yêu cầu nâng cấp ${req.vip_tier} (${req.amount_vnd.toLocaleString()}đ).`,
+           type: 'system',
+           created_at: new Date().toISOString()
+        }]);
+    }
     return { success: !error, message: error ? error.message : 'Gửi yêu cầu thành công, vui lòng chờ duyệt.' };
   },
   
   updateVipRequestStatus: async (requestId: string, status: 'completed' | 'refunded', userId?: string, vipTier?: string, amountVnd?: number) => {
-    // 1. Cập nhật trạng thái yêu cầu
     const { error } = await supabase.from('vip_requests').update({ status }).eq('id', requestId);
     if (error) return { success: false, message: error.message };
 
-    // 2. Nếu duyệt thành công, kích hoạt VIP cho hội viên
     if (status === 'completed' && userId && vipTier && amountVnd) {
-      // Logic tính ngày: 20k=1 ngày, 100k=7 ngày, 500k=30 ngày
       let days = 1;
       if (amountVnd >= 500000) days = 30;
       else if (amountVnd >= 100000) days = 7;
       else if (amountVnd >= 20000) days = 1;
 
-      // Hạn dùng tính từ thời điểm duyệt
       const until = new Date();
       until.setDate(until.getDate() + days);
 
@@ -275,29 +283,79 @@ export const dbService = {
   },
 
   getAllUsers: async () => { const { data } = await supabase.from('users_data').select('*').order('balance', { ascending: false }); return (data || []).map(mapUser); },
+  
   getWithdrawals: async (userId?: string) => { 
     let q = supabase.from('withdrawals').select('*').order('created_at', { ascending: false });
     if (userId) q = q.eq('user_id', userId);
-    const { data } = await q; return data || [];
+    const { data } = await q; 
+    return (data || []).map(mapWithdrawal);
   },
+
   addWithdrawal: async (request: any) => {
-    const { error } = await supabase.from('withdrawals').insert([request]);
+    // Ánh xạ sang snake_case của Supabase
+    const dbData = {
+      user_id: request.userId,
+      user_name: request.userName,
+      amount: request.amount,
+      type: request.type,
+      status: request.status,
+      details: request.details,
+      created_at: request.createdAt
+    };
+    
+    const { error } = await supabase.from('withdrawals').insert([dbData]);
+    
     if (!error) {
+        // Trừ tiền user
         const { data: u } = await supabase.from('users_data').select('balance').eq('id', request.userId).single();
-        if (u) await supabase.from('users_data').update({ balance: Number(u.balance) - (request.amount * RATE_VND_TO_POINT) }).eq('id', request.userId);
+        if (u) {
+          await supabase.from('users_data').update({ 
+            balance: Number(u.balance) - (request.amount * RATE_VND_TO_POINT) 
+          }).eq('id', request.userId);
+        }
+        
+        // Thông báo hệ thống cho Admin hòm thư 'all'
+        // Sử dụng try-catch để tránh crash nếu insert notification lỗi
+        try {
+          await supabase.from('notifications').insert([{
+             user_id: 'all',
+             title: 'YÊU CẦU RÚT TIỀN MỚI',
+             content: `Hội viên ${request.userName} vừa yêu cầu rút ${request.amount.toLocaleString()}đ qua ${request.type === 'bank' ? 'ATM' : 'Game'}.`,
+             type: 'withdrawal',
+             created_at: new Date().toISOString()
+          }]);
+        } catch (e) {
+          console.error("Error sending admin notification:", e);
+        }
     }
-    return { success: !error };
+    return { success: !error, message: error ? error.message : 'Gửi yêu cầu thành công' };
   },
+
   updateWithdrawalStatus: async (id: string, status: string) => {
     const { data: w } = await supabase.from('withdrawals').select('*').eq('id', id).single();
     if (!w) return { success: false };
     const { error } = await supabase.from('withdrawals').update({ status }).eq('id', id);
-    if (!error && status === 'rejected') {
-        const { data: u } = await supabase.from('users_data').select('balance').eq('id', w.user_id).single();
-        if (u) await supabase.from('users_data').update({ balance: Number(u.balance) + (w.amount * RATE_VND_TO_POINT) }).eq('id', w.user_id);
+    
+    if (!error) {
+        if (status === 'rejected') {
+            const { data: u } = await supabase.from('users_data').select('balance').eq('id', w.user_id).single();
+            if (u) await supabase.from('users_data').update({ balance: Number(u.balance) + (w.amount * RATE_VND_TO_POINT) }).eq('id', w.user_id);
+        }
+        
+        // Thông báo kết quả cho người dùng
+        await supabase.from('notifications').insert([{
+           user_id: w.user_id,
+           title: status === 'completed' ? 'RÚT TIỀN THÀNH CÔNG' : 'YÊU CẦU BỊ TỪ CHỐI',
+           content: status === 'completed' 
+             ? `Yêu cầu rút ${Number(w.amount).toLocaleString()}đ của bạn đã được duyệt thành công.`
+             : `Yêu cầu rút ${Number(w.amount).toLocaleString()}đ đã bị từ chối. Số dư đã được hoàn lại.`,
+           type: 'withdrawal',
+           created_at: new Date().toISOString()
+        }]);
     }
     return { success: !error };
   },
+
   getGiftcodes: async () => { const { data } = await supabase.from('giftcodes').select('*').order('created_at', { ascending: false }); return (data || []).map(mapGiftcode); },
   addGiftcode: async (code: string, amount: number, maxUses: number) => {
     const { error } = await supabase.from('giftcodes').insert([{

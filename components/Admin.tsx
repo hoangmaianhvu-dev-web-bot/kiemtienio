@@ -34,7 +34,7 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
 
   const [tab, setTab] = useState<'users' | 'withdrawals' | 'payments' | 'ads' | 'giftcodes' | 'announcements'>('users');
   const [users, setUsers] = useState<User[]>([]);
-  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [vipRequests, setVipRequests] = useState<any[]>([]);
   const [ads, setAds] = useState<AdBanner[]>([]);
   const [giftcodes, setGiftcodes] = useState<Giftcode[]>([]);
@@ -277,7 +277,7 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
                     <tr key={w.id} className="text-xs hover:bg-white/[0.03] transition-all">
                       <td className="px-6 py-8 font-black text-blue-500 italic">#ORD-{String(w.id).slice(0, 8).toUpperCase()}</td>
                       <td className="px-6 py-8">
-                         <div className="font-black text-white uppercase italic text-sm">{w.user_name}</div>
+                         <div className="font-black text-white uppercase italic text-sm">{w.userName}</div>
                          <div className="text-[10px] text-slate-600 font-bold truncate max-w-[150px] mt-1">{w.details}</div>
                       </td>
                       <td className="px-6 py-8 font-black text-white text-base">{w.amount.toLocaleString()}đ</td>

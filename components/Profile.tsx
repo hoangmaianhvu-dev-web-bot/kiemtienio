@@ -10,7 +10,7 @@ import { SOCIAL_LINKS } from '../constants.tsx';
 
 interface Props {
   user: User;
-  onUpdateUser: (user: User) => void;
+  onUpdateUser: (user: User) => Promise<any>;
 }
 
 const Profile: React.FC<Props> = ({ user, onUpdateUser }) => {
@@ -28,12 +28,17 @@ const Profile: React.FC<Props> = ({ user, onUpdateUser }) => {
     setIsSaving(true);
     const updatedUser = { ...user, bankInfo: bank, idGame: gameId, phoneNumber: phone };
     
-    // Perform update via App.tsx's handler which calls dbService.updateUser
-    await onUpdateUser(updatedUser);
+    // Check result of update
+    const res = await onUpdateUser(updatedUser);
     
     setIsSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    
+    if (res && res.success) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+    } else {
+        alert(res?.message || "Lỗi cập nhật. Vui lòng thử lại.");
+    }
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {

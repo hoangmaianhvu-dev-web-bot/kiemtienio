@@ -60,22 +60,27 @@ const Withdraw: React.FC<Props> = ({ user, onUpdateUser, initialHistory = false,
     
     setIsProcessing(false);
     
-    if (res && (res as any).error) {
-      alert((res as any).error);
-      return;
+    if (res.success) {
+      // Hiển thị Gold Modal sang trọng
+      showGoldSuccess(
+        "GỬI YÊU CẦU THÀNH CÔNG",
+        `Yêu cầu rút thưởng trị giá ${selectedMilestone.toLocaleString()}đ đã được gửi tới hệ thống. Quà tặng sẽ được xử lý trong vòng 5-30 phút.`
+      );
+
+      setMethod(null);
+      setSelectedMilestone(null);
+      
+      // Refresh user balance visually (optimistic or re-fetch)
+      // The balance is updated on server, let's fetch user again or just notify parent
+      const updatedUser = await dbService.getCurrentUser();
+      if(updatedUser) onUpdateUser(updatedUser);
+
+      // Refresh history
+      const data = await dbService.getWithdrawals(user.id);
+      setHistory(data);
+    } else {
+      alert(res.message || "Có lỗi xảy ra khi gửi yêu cầu. Vui lòng thử lại.");
     }
-
-    // Hiển thị Gold Modal sang trọng thay vì UI success cũ
-    showGoldSuccess(
-      "GỬI YÊU CẦU THÀNH CÔNG",
-      `Yêu cầu rút thưởng trị giá ${selectedMilestone.toLocaleString()}đ đã được gửi tới hệ thống. Quà tặng sẽ được xử lý trong vòng 5-30 phút.`
-    );
-
-    setMethod(null);
-    setSelectedMilestone(null);
-    
-    const data = await dbService.getWithdrawals(user.id);
-    setHistory(data);
   };
 
   if (showHistory) {
@@ -103,7 +108,7 @@ const Withdraw: React.FC<Props> = ({ user, onUpdateUser, initialHistory = false,
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest bg-blue-500/10 px-2 py-0.5 rounded">ID: #{req.id}</span>
+                      <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest bg-blue-500/10 px-2 py-0.5 rounded">ID: #{String(req.id).slice(0, 8).toUpperCase()}</span>
                     </div>
                     <h4 className="font-black text-xl text-white uppercase italic tracking-tight">
                       {req.type === 'bank' ? `${req.amount.toLocaleString()}đ` : `THƯỞNG GAME (${req.amount.toLocaleString()}đ)`}
