@@ -196,12 +196,12 @@ export const dbService = {
       return { success: false, message: 'Mã đã đạt giới hạn lượt sử dụng.' };
     }
 
-    // 2. Xác thực người dùng (Fix lỗi xác thực ở đây bằng maybeSingle và ID safe)
-    const { data: u, error: uError } = await supabase.from('users_data').select('id, balance, total_giftcode_earned').eq('id', safeUserId).maybeSingle();
+    // 2. Xác thực người dùng (Fix lỗi xác thực ở đây bằng maybeSingle và select *, tránh lỗi missing column)
+    const { data: u, error: uError } = await supabase.from('users_data').select('*').eq('id', safeUserId).maybeSingle();
     
     if (uError) {
         console.error("Lỗi truy vấn user:", uError);
-        return { success: false, message: 'Lỗi kết nối CSDL.' };
+        return { success: false, message: `Lỗi kết nối CSDL: ${uError.message}` };
     }
     if (!u) {
         return { success: false, message: 'Lỗi xác thực người dùng. Vui lòng đăng nhập lại.' };

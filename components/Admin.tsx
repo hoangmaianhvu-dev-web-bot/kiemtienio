@@ -314,7 +314,7 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
                                 <th>Mã Đơn</th>
                                 <th>Hội Viên</th>
                                 <th>Số Tiền</th>
-                                <th>Ảnh Bill</th>
+                                <th className="text-center">Ảnh Bill</th>
                                 <th>Tình Trạng</th>
                                 <th className="text-right">Hành Động</th>
                             </tr>
@@ -328,16 +328,23 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
                                     <div className="text-[10px] opacity-60">{req.email}</div>
                                   </td>
                                   <td style={{ color: '#2ecc71', fontWeight: 900 }}>+ {req.amount_vnd?.toLocaleString()}đ</td>
-                                  <td>
+                                  <td className="text-center">
                                     {req.bill_url ? (
-                                      <button 
+                                      <div 
+                                        className="relative w-12 h-12 mx-auto cursor-pointer group"
                                         onClick={() => setViewBill(req.bill_url)}
-                                        className="flex items-center gap-2 text-[9px] font-black text-blue-400 bg-blue-400/10 px-3 py-2 rounded-lg hover:bg-blue-400 hover:text-white transition-all border border-blue-400/20 uppercase tracking-wider"
                                       >
-                                         <ImageIcon size={12} /> Xem Bill
-                                      </button>
+                                        <img 
+                                          src={req.bill_url} 
+                                          className="w-full h-full object-cover rounded-lg border border-white/10 shadow-sm transition-transform group-hover:scale-150 group-hover:z-50" 
+                                          alt="Bill"
+                                        />
+                                        <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <Eye size={16} className="text-white drop-shadow-md" />
+                                        </div>
+                                      </div>
                                     ) : (
-                                      <span className="text-[9px] text-slate-600 italic opacity-50">---</span>
+                                      <span className="text-[9px] text-slate-600 italic opacity-30">---</span>
                                     )}
                                   </td>
                                   <td>
