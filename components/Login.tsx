@@ -26,11 +26,23 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPass, setShowPass] = useState(false);
+  
+  // Ads Logic
   const [ads, setAds] = useState<AdBanner[]>([]);
+  const [currentAdIndex, setCurrentAdIndex] = useState(0);
 
   useEffect(() => {
     dbService.getAds().then(setAds);
   }, []);
+
+  // Auto cycle ads
+  useEffect(() => {
+    if (ads.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentAdIndex(prev => (prev + 1) % ads.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [ads]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,11 +111,29 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
           <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
              <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-3 italic">Tài trợ Nova</p>
-             {ads.length > 0 ? (
-               <img src={ads[0].imageUrl} className="w-full h-24 object-cover rounded-xl" alt="Ads" />
-             ) : (
-               <div className="h-24 bg-slate-800 rounded-xl flex items-center justify-center text-slate-600 text-[10px] uppercase font-black">Quảng cáo đang tải...</div>
-             )}
+             <div className="relative w-full h-24 rounded-xl overflow-hidden group cursor-pointer bg-slate-800">
+               {ads.length > 0 ? (
+                 ads.map((ad, idx) => (
+                   <a 
+                      key={ad.id}
+                      href={ad.targetUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${idx === currentAdIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+                   >
+                     <img 
+                        src={ad.imageUrl} 
+                        className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" 
+                        alt={ad.title} 
+                     />
+                     {/* Overlay gradient similar to dashboard */}
+                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                   </a>
+                 ))
+               ) : (
+                 <div className="h-full flex items-center justify-center text-slate-600 text-[10px] uppercase font-black">Quảng cáo đang tải...</div>
+               )}
+             </div>
           </div>
           <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest italic">{COPYRIGHT}</p>
         </div>
