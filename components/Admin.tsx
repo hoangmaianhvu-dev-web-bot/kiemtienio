@@ -88,7 +88,6 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
 
   const handleToggleBan = async (u: User) => {
     const reason = u.isBanned ? '' : prompt('Lý do khóa?') || 'Vi phạm chính sách';
-    // IMPORTANT: Custom confirm is async, must await
     if (!u.isBanned && !(await confirm('KHÓA người dùng này?'))) return;
     setIsActionLoading(true);
     const res = await dbService.updateUser(u.id, { isBanned: !u.isBanned, banReason: reason });
@@ -109,7 +108,6 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
     if (u.id === user.id) return alert("Bạn không thể tự xóa chính mình!");
     if (u.email === 'adminavudev@gmail.com') return alert("Không thể xóa tài khoản Admin hệ thống!");
     
-    // IMPORTANT: Custom confirm is async, must await
     if (!(await confirm(`CẢNH BÁO NGUY HIỂM: Bạn có chắc chắn muốn xóa VĨNH VIỄN hội viên ${u.fullname}? Mọi dữ liệu điểm thưởng, lịch sử rút và VIP của họ sẽ biến mất hoàn toàn!`))) return;
     
     setIsActionLoading(true);
@@ -134,28 +132,23 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
     await refreshData();
   };
   
-  // Hàm xử lý thanh toán (Được custom theo yêu cầu mới)
   const updatePayment = async (billId: string, status: 'approved' | 'refunded', req?: any) => {
-    // Nếu req undefined (gọi từ button trong mảng), tìm trong vipRequests
     let request = req;
     if (!request && vipRequests) {
-        request = vipRequests.find(v => `#NV${v.id.slice(0,4)}` === billId || v.id === billId);
+        request = vipRequests.find(v => `#NV${String(v.id).slice(0,4)}` === billId || String(v.id) === billId);
     }
 
-    // Logic gọi Nova Notify
     const statusText = status === 'approved' ? 'DUYỆT THÀNH CÔNG' : 'HOÀN TIỀN THÀNH CÔNG';
     const type = status === 'approved' ? 'success' : 'info';
     
     if (request) {
         if (!(await confirm(`Xác nhận ${status === 'approved' ? 'DUYỆT' : 'HOÀN'} đơn ${billId}?`))) return;
         setIsActionLoading(true);
-        // Map 'approved' -> 'completed' for DB
         const dbStatus = status === 'approved' ? 'completed' : 'refunded';
         const res = await dbService.updateVipRequestStatus(request.id, dbStatus, request.user_id, request.vip_tier, request.amount_vnd);
         setIsActionLoading(false);
         
         if (res.success) {
-            // Gọi hệ thống thông báo Nova
             if((window as any).novaNotify) {
                 (window as any).novaNotify(type, 'THANH TOÁN', `Đơn hàng ${billId} đã được ${statusText}!`);
             }
@@ -166,7 +159,6 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
             }
         }
     } else {
-        // Fallback demo nếu không tìm thấy request thực
         if((window as any).novaNotify) {
             (window as any).novaNotify(type, 'THANH TOÁN', `Đơn hàng ${billId} đã được ${statusText}! (Demo)`);
         }
@@ -276,14 +268,14 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
 
         {tab === 'withdrawals' && (
           <div className="space-y-8">
-            <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">PHÊ DUYỆT THANH TOÁN</h3>
+            <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">PHÊ DUYỆT RÚT THƯỞNG</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead><tr className="text-[10px] font-black text-slate-500 uppercase italic border-b border-white/5 tracking-widest"><th className="px-6 py-6">Mã Đơn</th><th className="px-6 py-6">Hội Viên</th><th className="px-6 py-6">Số Tiền</th><th className="px-6 py-6 text-right">Tình Trạng</th></tr></thead>
                 <tbody className="divide-y divide-white/5">
                   {withdrawals.map(w => (
                     <tr key={w.id} className="text-xs hover:bg-white/[0.03] transition-all">
-                      <td className="px-6 py-8 font-black text-blue-500 italic">#ORD-{w.id.slice(0, 8).toUpperCase()}</td>
+                      <td className="px-6 py-8 font-black text-blue-500 italic">#ORD-{String(w.id).slice(0, 8).toUpperCase()}</td>
                       <td className="px-6 py-8">
                          <div className="font-black text-white uppercase italic text-sm">{w.user_name}</div>
                          <div className="text-[10px] text-slate-600 font-bold truncate max-w-[150px] mt-1">{w.details}</div>
@@ -305,10 +297,9 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
           </div>
         )}
         
-        {/* Nova Payment Card - Code mới tích hợp */}
         {tab === 'payments' && (
           <div className="space-y-8 animate-in slide-in-from-right-10">
-            <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter" style={{ color: '#e2b13c' }}>Quản Lý Thanh Toán</h3>
+            <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter" style={{ color: '#e2b13c' }}>Quản Lý Thanh Toán (Nạp VIP)</h3>
             
             <div className="nova-card">
                 <div className="nova-card-header">
@@ -329,7 +320,7 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
                         <tbody id="payment-list">
                             {vipRequests.map((req) => (
                               <tr key={req.id}>
-                                  <td className="font-bold">#NV{req.id.slice(0,4)}</td>
+                                  <td className="font-bold">#NV{String(req.id).slice(0,4)}</td>
                                   <td>
                                     <div className="font-bold text-white">{req.user_name}</div>
                                     <div className="text-[10px] opacity-60">{req.email}</div>
@@ -343,8 +334,8 @@ export default function Admin({ user, onUpdateUser, setSecurityModal, showToast,
                                   <td className="text-right">
                                     {req.status === 'pending' && (
                                       <>
-                                        <button className="btn-action btn-approve" onClick={() => updatePayment(req.id, 'approved', req)}>Duyệt</button>
-                                        <button className="btn-action btn-refund" onClick={() => updatePayment(req.id, 'refunded', req)}>Hoàn</button>
+                                        <button className="btn-action btn-approve" onClick={() => updatePayment(String(req.id), 'approved', req)}>Duyệt</button>
+                                        <button className="btn-action btn-refund" onClick={() => updatePayment(String(req.id), 'refunded', req)}>Hoàn</button>
                                       </>
                                     )}
                                   </td>
