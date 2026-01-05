@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DIAMOND NOVA - Hệ Thống Nhận Thưởng Game Số 1</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js" crossorigin="anonymous"></script>
     <script>
       window.process = {
         env: {
@@ -19,30 +19,38 @@
       window.esmsInitOptions = {
         shimMode: true,
         fetch: async (url, options) => {
-          const res = await fetch(url, options);
-          if (!res.ok) return res;
-          if (url.endsWith('.ts') || url.endsWith('.tsx') || url.includes('index.tsx')) {
-            const source = await res.text();
-            const transformed = Babel.transform(source, {
-              presets: [
-                ['react', { runtime: 'automatic' }],
-                ['typescript', { isTSX: true, allExtensions: true }]
-              ],
-              filename: url
-            }).code;
-            return new Response(transformed, { headers: { 'content-type': 'application/javascript' } });
+          try {
+            const res = await fetch(url, options);
+            if (!res.ok) return res;
+            if (url.endsWith('.ts') || url.endsWith('.tsx') || url.includes('index.tsx')) {
+              const source = await res.text();
+              const transformed = Babel.transform(source, {
+                presets: [
+                  ['react', { runtime: 'automatic' }],
+                  ['typescript', { isTSX: true, allExtensions: true }]
+                ],
+                filename: url
+              }).code;
+              return new Response(transformed, { headers: { 'content-type': 'application/javascript' } });
+            }
+            return res;
+          } catch (err) {
+            console.error('Fetch/Transform error for ' + url, err);
+            throw err;
           }
-          return res;
         }
       };
     </script>
-    <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+    <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js" crossorigin="anonymous"></script>
     <script type="importmap-shim">
     {
       "imports": {
         "react": "https://esm.sh/react@19.0.0",
+        "react/": "https://esm.sh/react@19.0.0/",
         "react-dom": "https://esm.sh/react-dom@19.0.0",
+        "react-dom/": "https://esm.sh/react-dom@19.0.0/",
         "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+        "react/jsx-runtime": "https://esm.sh/react@19.0.0/jsx-runtime",
         "lucide-react": "https://esm.sh/lucide-react@0.460.0",
         "@google/genai": "https://esm.sh/@google/genai@1.34.0",
         "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.7"
