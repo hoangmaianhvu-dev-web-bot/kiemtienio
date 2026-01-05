@@ -1,5 +1,3 @@
-
-import React from 'react';
 import { 
   LayoutDashboard,
   Coins,
@@ -15,7 +13,7 @@ import {
   Cloud,
   Crown
 } from 'lucide-react';
-import { AppView, TaskGate } from './types.ts';
+import { AppView } from './types.ts';
 
 export const ADMIN_ID = "7790668848";
 export const RATE_VND_TO_POINT = 10;
@@ -48,10 +46,9 @@ export const ADMIN_BANKS = [
   { bank: "TPBANK", account: "55000123789", owner: "HOANG MAI ANH VU" }
 ];
 
-export const SLOGAN = "HỆ THỐNG NHIỆM VỤ - KIẾM TIỀN - Nhận Thẻ Game Quân Huy - Kim Cương Miễn Phí";
+export const SLOGAN = "HỆ THỐNG NHIỆM VỤ - KIẾM TIỀN - Nhận Thẻ Game Quân Huy - Kim Cương Miễn Phí 100%";
 export const COPYRIGHT = "Bản quyền bởi DIAMOND NOVA";
 
-// Giá trị gốc (Basic), VIP sẽ được x1.5 trong code xử lý
 export const TASK_RATES: Record<number, { name: string, reward: number, limit: number, apiKey: string }> = {
   1: { name: "LINK4M", reward: 1320, limit: 2, apiKey: "68208afab6b8fc60542289b6" },
   2: { name: "YEULINK", reward: 1320, limit: 4, apiKey: "891b97fa-faa4-4446-bdd3-17add1ea42bc" },
@@ -61,20 +58,21 @@ export const TASK_RATES: Record<number, { name: string, reward: number, limit: n
   6: { name: "LAYMANET", reward: 1320, limit: 3, apiKey: "ad22fab4209242db6c1bc093898fe2e8" }
 };
 
+// Lưu trữ Component chính nó, KHÔNG PHẢI Element <Icon />
 export const NAV_ITEMS = [
-  { id: AppView.DASHBOARD, label: 'Trang chủ', icon: <LayoutDashboard /> },
-  { id: AppView.VIP, label: 'Nâng cấp VIP', icon: <Crown className="text-amber-400" /> },
-  { id: AppView.TASKS, label: 'Nhiệm vụ', icon: <Coins /> },
-  { id: AppView.WITHDRAW, label: 'Rút Thưởng Game', icon: <CreditCard /> },
-  { id: AppView.HISTORY, label: 'Lịch sử rút', icon: <History /> },
-  { id: AppView.SUPPORT, label: 'Trợ lý AI Gemini', icon: <Bot /> },
-  { id: AppView.NOTIFICATIONS, label: 'Thông báo', icon: <Bell /> },
-  { id: AppView.GIFTCODE, label: 'Nhập Giftcode', icon: <Ticket /> },
-  { id: AppView.LEADERBOARD, label: 'Bảng Xếp Hạng', icon: <Trophy /> },
-  { id: AppView.REFERRAL, label: 'Mời Bạn Bè', icon: <Users /> },
-  { id: AppView.GUIDE, label: 'Hướng dẫn', icon: <BookOpen /> },
-  { id: AppView.PROFILE, label: 'Tài Khoản', icon: <User /> },
-  { id: AppView.ADMIN, label: 'HỆ THỐNG', icon: <Cloud />, adminOnly: true },
+  { id: AppView.DASHBOARD, label: 'Trang chủ', icon: LayoutDashboard },
+  { id: AppView.VIP, label: 'Nâng cấp VIP', icon: Crown, isSpecial: true },
+  { id: AppView.TASKS, label: 'Nhiệm vụ', icon: Coins },
+  { id: AppView.WITHDRAW, label: 'Rút Thưởng Game', icon: CreditCard },
+  { id: AppView.HISTORY, label: 'Lịch sử rút', icon: History },
+  { id: AppView.SUPPORT, label: 'Trợ lý AI Gemini', icon: Bot },
+  { id: AppView.NOTIFICATIONS, label: 'Thông báo', icon: Bell },
+  { id: AppView.GIFTCODE, label: 'Nhập Giftcode', icon: Ticket },
+  { id: AppView.LEADERBOARD, label: 'Bảng Xếp Hạng', icon: Trophy },
+  { id: AppView.REFERRAL, label: 'Mời Bạn Bè', icon: Users },
+  { id: AppView.GUIDE, label: 'Hướng dẫn', icon: BookOpen },
+  { id: AppView.PROFILE, label: 'Tài Khoản', icon: User },
+  { id: AppView.ADMIN, label: 'HỆ THỐNG', icon: Cloud, adminOnly: true },
 ];
 
 export const formatK = (num: number | undefined | null): string => {

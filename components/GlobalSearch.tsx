@@ -30,7 +30,7 @@ const GlobalSearch: React.FC<Props> = ({ onNavigate, isAdmin }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Xử lý tìm kiếm - BẢO MẬT: Chỉ admin mới thấy item adminOnly
+  // Xử lý tìm kiếm
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
@@ -38,7 +38,6 @@ const GlobalSearch: React.FC<Props> = ({ onNavigate, isAdmin }) => {
     }
     const filtered = NAV_ITEMS.filter(item => {
       const match = item.label.toLowerCase().includes(query.toLowerCase());
-      // RÀO CHẮN BẢO MẬT: Nếu item là AdminOnly mà user không phải Admin thì trả về false ngay lập tức
       if (item.adminOnly && !isAdmin) return false;
       return match;
     });
@@ -95,23 +94,26 @@ const GlobalSearch: React.FC<Props> = ({ onNavigate, isAdmin }) => {
         <div className="absolute top-full left-0 right-0 mt-3 glass-card rounded-[2rem] border border-white/10 overflow-hidden z-[100] shadow-3xl animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="p-3 space-y-1">
             {results.length > 0 ? (
-              results.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleSelect(item.id)}
-                  className="w-full flex items-center justify-between p-4 rounded-2xl hover:bg-blue-600 group transition-all"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-2.5 bg-white/5 rounded-xl text-slate-400 group-hover:text-white group-hover:bg-white/10 transition-all">
-                      {React.cloneElement(item.icon as any, { size: 18 })}
+              results.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleSelect(item.id)}
+                    className="w-full flex items-center justify-between p-4 rounded-2xl hover:bg-blue-600 group transition-all"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="p-2.5 bg-white/5 rounded-xl text-slate-400 group-hover:text-white group-hover:bg-white/10 transition-all">
+                        <Icon size={18} />
+                      </div>
+                      <span className="text-[11px] font-black text-slate-300 group-hover:text-white uppercase italic tracking-[0.1em]">
+                        {item.label}
+                      </span>
                     </div>
-                    <span className="text-[11px] font-black text-slate-300 group-hover:text-white uppercase italic tracking-[0.1em]">
-                      {item.label}
-                    </span>
-                  </div>
-                  <ArrowRight size={16} className="text-slate-600 group-hover:text-white group-hover:translate-x-1 transition-all" />
-                </button>
-              ))
+                    <ArrowRight size={16} className="text-slate-600 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                  </button>
+                );
+              })
             ) : query ? (
               <div className="p-10 text-center space-y-2">
                 <Search size={24} className="mx-auto text-slate-800 mb-2" />

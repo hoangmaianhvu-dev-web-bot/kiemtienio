@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User, WithdrawalRequest } from '../types.ts';
 import { WITHDRAW_MILESTONES, RATE_VND_TO_POINT, formatK, DIAMOND_EXCHANGE, QUAN_HUY_EXCHANGE } from '../constants.tsx';
 import { dbService } from '../services/dbService.ts';
-import { Building2, Gamepad2, Wallet, CheckCircle, Loader2, History, ArrowRightLeft, ShieldCheck, Lock } from 'lucide-react';
+import { Building2, Gamepad2, Wallet, CheckCircle, Loader2, History, ArrowRightLeft, ShieldCheck, Lock, Filter, List } from 'lucide-react';
 
 interface Props {
   user: User;
@@ -18,6 +18,7 @@ const Withdraw: React.FC<Props> = ({ user, onUpdateUser, initialHistory = false,
   const [selectedMilestone, setSelectedMilestone] = useState<number | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [history, setHistory] = useState<WithdrawalRequest[]>([]);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending'>('all');
 
   useEffect(() => {
     setShowHistory(initialHistory);
@@ -30,6 +31,14 @@ const Withdraw: React.FC<Props> = ({ user, onUpdateUser, initialHistory = false,
     };
     fetchHistory();
   }, [user.id]);
+
+  // Logic lọc lịch sử
+  const filteredHistory = useMemo(() => {
+    if (filterStatus === 'all') return history;
+    return history.filter(item => item.status === 'pending');
+  }, [history, filterStatus]);
+
+  const pendingCount = useMemo(() => history.filter(item => item.status === 'pending').length, [history]);
 
   const pointsNeeded = selectedMilestone ? selectedMilestone * RATE_VND_TO_POINT : 0;
   const canAfford = user.balance >= pointsNeeded;
@@ -82,22 +91,41 @@ const Withdraw: React.FC<Props> = ({ user, onUpdateUser, initialHistory = false,
   if (showHistory) {
     return (
       <div className="space-y-10 animate-in slide-in-from-right-12 duration-500">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
              <div className="p-3 bg-blue-600/10 rounded-2xl text-blue-400 border border-blue-500/20"><History className="w-8 h-8" /></div>
-             <h1 className="text-4xl font-black text-white italic uppercase tracking-tighter">LỊCH SỬ GIAO DỊCH</h1>
+             <div>
+                <h1 className="text-4xl font-black text-white italic uppercase tracking-tighter">LỊCH SỬ GIAO DỊCH</h1>
+                <p className="text-[10px] text-slate-500 font-black uppercase italic tracking-widest mt-1">Theo dõi trạng thái rút thưởng của bạn</p>
+             </div>
           </div>
           <button onClick={() => setShowHistory(false)} className="px-10 py-4 bg-slate-900 border border-white/5 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-slate-800 transition-all italic shadow-lg">RÚT THƯỞNG MỚI</button>
         </div>
+
+        {/* Filter Tabs */}
+        <div className="flex p-1.5 bg-slate-900/50 backdrop-blur-md rounded-2xl border border-white/5 w-fit">
+           <button 
+             onClick={() => setFilterStatus('all')}
+             className={`flex items-center gap-3 px-6 py-3 rounded-xl text-[10px] font-black uppercase italic tracking-widest transition-all ${filterStatus === 'all' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+           >
+             <List size={14} /> TẤT CẢ ({history.length})
+           </button>
+           <button 
+             onClick={() => setFilterStatus('pending')}
+             className={`flex items-center gap-3 px-6 py-3 rounded-xl text-[10px] font-black uppercase italic tracking-widest transition-all ${filterStatus === 'pending' ? 'bg-amber-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+           >
+             <Filter size={14} /> ĐANG CHỜ ({pendingCount})
+           </button>
+        </div>
         
-        {history.length === 0 ? (
+        {filteredHistory.length === 0 ? (
           <div className="glass-card p-24 text-center text-slate-700 rounded-[3.5rem] font-black uppercase italic tracking-widest border border-white/5 bg-slate-900/10 shadow-inner">
-             Chưa phát hiện giao dịch rút tiền nào.
+             {filterStatus === 'all' ? 'Chưa phát hiện giao dịch rút tiền nào.' : 'Không có yêu cầu nào đang chờ duyệt.'}
           </div>
         ) : (
           <div className="space-y-6">
-            {history.map(req => (
-              <div key={req.id} className="glass-card p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between border-l-[10px] border-l-blue-600 gap-8 hover:bg-slate-900/40 transition-all shadow-xl">
+            {filteredHistory.map(req => (
+              <div key={req.id} className="glass-card p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between border-l-[10px] border-l-blue-600 gap-8 hover:bg-slate-900/40 transition-all shadow-xl animate-in fade-in slide-in-from-bottom-2">
                 <div className="flex gap-6 items-center">
                   <div className={`p-5 rounded-2xl ${req.type === 'bank' ? 'bg-emerald-600/10 text-emerald-400' : 'bg-purple-600/10 text-purple-400'} border border-white/5`}>
                      {req.type === 'bank' ? <Building2 className="w-7 h-7" /> : <Gamepad2 className="w-7 h-7" />}

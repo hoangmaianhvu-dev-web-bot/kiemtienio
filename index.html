@@ -1,34 +1,33 @@
-
 <!DOCTYPE html>
 <html lang="vi" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DIAMOND NOVA - Nhận Thẻ Game Quân Huy - Kim Cương Miễn Phí 100%</title>
-    
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z'/%3E%3C/svg%3E">
-
+    <title>DIAMOND NOVA - Hệ Thống Nhận Thưởng Game Số 1</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js" crossorigin="anonymous"></script>
-    <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
-    
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script>
-      (function() {
-        const theme = localStorage.getItem('nova_theme') || 'dark';
-        document.documentElement.classList.toggle('dark', theme === 'dark');
-        document.documentElement.classList.toggle('light', theme === 'light');
-      })();
+      window.process = {
+        env: {
+          API_KEY: "",
+          SUPABASE_URL: "https://egssxcsxtfaunuudydkc.supabase.co",
+          SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnc3N4Y3N4dGZhdW51dWR5ZGtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcyNTgyOTQsImV4cCI6MjA4MjgzNDI5NH0.1sAoTcps8W0Sz54PMOhmqkEpA4bzX_LyObc_y7nAi7g"
+        }
+      };
 
       window.esmsInitOptions = {
         shimMode: true,
         fetch: async (url, options) => {
           const res = await fetch(url, options);
           if (!res.ok) return res;
-          if (url.endsWith('.ts') || url.endsWith('.tsx')) {
+          if (url.endsWith('.ts') || url.endsWith('.tsx') || url.includes('index.tsx')) {
             const source = await res.text();
             const transformed = Babel.transform(source, {
-              presets: [['react', { runtime: 'classic' }], ['typescript', { isTSX: true, allExtensions: true }]],
+              presets: [
+                ['react', { runtime: 'automatic' }],
+                ['typescript', { isTSX: true, allExtensions: true }]
+              ],
               filename: url
             }).code;
             return new Response(transformed, { headers: { 'content-type': 'application/javascript' } });
@@ -37,113 +36,37 @@
         }
       };
     </script>
-    <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js" crossorigin="anonymous"></script>
-
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-      :root {
-        --bg-deep: #03050a;
-        --glass-bg: rgba(15, 23, 42, 0.65);
-        --glass-border: rgba(255, 255, 255, 0.05);
-      }
-      .light {
-        --bg-deep: #f8fafc;
-        --glass-bg: rgba(255, 255, 255, 0.8);
-        --glass-border: rgba(0, 0, 0, 0.05);
-      }
-      body {
-        font-family: 'Inter', sans-serif;
-        background-color: var(--bg-deep);
-        margin: 0;
-      }
-      .glass-card {
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        border: 1px solid var(--glass-border);
-      }
-      .nova-gradient {
-        background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #2563eb 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-      }
-
-      /* Infinite Marquee Animation */
-      @keyframes marquee {
-        0% { transform: translateX(0); }
-        100% { transform: translateX(-50%); }
-      }
-      .animate-marquee {
-        display: flex;
-        width: fit-content;
-        animation: marquee 30s linear infinite;
-      }
-      .animate-marquee:hover {
-        animation-play-state: paused;
-      }
-
-      /* VIP Animations */
-      @keyframes vip-shimmer {
-        0% { background-position: -200% 0; }
-        100% { background-position: 200% 0; }
-      }
-      .vip-elite-shimmer {
-        background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.2), transparent);
-        background-size: 200% 100%;
-        animation: vip-shimmer 3s infinite linear;
-      }
-      .vip-pro-shimmer {
-        background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.2), transparent);
-        background-size: 200% 100%;
-        animation: vip-shimmer 4s infinite linear;
-      }
-      .vip-basic-shimmer {
-        background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.2), transparent);
-        background-size: 200% 100%;
-        animation: vip-shimmer 5s infinite linear;
-      }
-      
-      @keyframes float {
-        0% { transform: translateY(0px) rotate(0deg); }
-        50% { transform: translateY(-5px) rotate(2deg); }
-        100% { transform: translateY(0px) rotate(0deg); }
-      }
-      .vip-crown-float {
-        animation: float 2.5s ease-in-out infinite;
-      }
-
-      /* VIP Rich Borders - NÂNG CẤP HIỆU ỨNG GLOW */
-      .elite-border-rich {
-        border: 3px solid #a855f7;
-        box-shadow: 0 0 25px rgba(168, 85, 247, 0.6), inset 0 0 15px rgba(168, 85, 247, 0.3);
-      }
-      .pro-border-rich {
-        border: 3px solid #f59e0b;
-        box-shadow: 0 0 25px rgba(245, 158, 11, 0.6), inset 0 0 15px rgba(245, 158, 11, 0.3);
-      }
-      .basic-border-rich {
-        border: 3px solid #3b82f6;
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.5), inset 0 0 10px rgba(59, 130, 246, 0.2);
-      }
-    </style>
-
+    <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js"></script>
     <script type="importmap-shim">
     {
       "imports": {
-        "react": "https://esm.sh/react@19.0.0?dev",
-        "react-dom": "https://esm.sh/react-dom@19.0.0?dev",
-        "react-dom/client": "https://esm.sh/react-dom@19.0.0/client?dev",
+        "react": "https://esm.sh/react@19.0.0",
+        "react-dom": "https://esm.sh/react-dom@19.0.0",
+        "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
         "lucide-react": "https://esm.sh/lucide-react@0.460.0",
         "@google/genai": "https://esm.sh/@google/genai@1.34.0",
         "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.7"
       }
     }
     </script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
+      body { font-family: 'Inter', sans-serif; background: #03050a; color: #f8fafc; margin: 0; overflow-x: hidden; }
+      .glass-card { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
+      .nova-gradient { background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #2563eb 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+      .animate-marquee { animation: marquee 20s linear infinite; }
+      .elite-border-rich { border: 2px solid #a855f7; box-shadow: 0 0 20px rgba(168, 85, 247, 0.4); }
+      .vip-crown-float { animation: crownFloat 3s ease-in-out infinite; }
+      @keyframes crownFloat { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-10px) rotate(5deg); } }
+    </style>
 <script type="importmap">
 {
   "imports": {
-    "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
     "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.89.0",
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
@@ -153,15 +76,6 @@
 </head>
 <body>
     <div id="root"></div>
-    <script>
-      window.process = { 
-        env: { 
-          API_KEY: "",
-          SUPABASE_URL: "https://egssxcsxtfaunuudydkc.supabase.co", 
-          SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnc3N4Y3N4dGZhdW51dWR5ZGtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcyNTgyOTQsImV4cCI6MjA4MjgzNDI5NH0.1sAoTcps8W0Sz54PMOhmqkEpA4bzX_LyObc_y7nAi7g" 
-        } 
-      };
-    </script>
     <script type="module-shim" src="index.tsx"></script>
 </body>
 </html>

@@ -1,282 +1,184 @@
-
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AppView, User, VipTier, Notification } from './types.ts';
-import { dbService, supabase } from './services/dbService.ts';
-import { NAV_ITEMS, formatK, SOCIAL_LINKS } from './constants.tsx';
+import { dbService } from './services/dbService.ts';
 import { 
-  Menu, LogOut, Sparkles, Bot, WifiOff, Bell, Activity, X, Star, Sun, Moon, 
-  Crown, MessageCircle, Youtube, Send, MessageSquare, Plus, AlertTriangle, Clock,
-  Facebook, Users as UsersIcon
+  LayoutDashboard, Coins, CreditCard, Trophy, Bot, User as UserIcon, 
+  Ticket, Crown, LogOut, Menu, X, Sparkles, Bell, Zap, TrendingUp, History,
+  BookOpen, Users, Cloud
 } from 'lucide-react';
 
-// Components
-import Login from './components/Login.tsx';
 import Dashboard from './components/Dashboard.tsx';
 import Tasks from './components/Tasks.tsx';
 import Withdraw from './components/Withdraw.tsx';
 import Leaderboard from './components/Leaderboard.tsx';
+import Support from './components/Support.tsx';
 import Profile from './components/Profile.tsx';
 import Giftcode from './components/Giftcode.tsx';
-import Referral from './components/Referral.tsx';
 import Admin from './components/Admin.tsx';
-import Guide from './components/Guide.tsx';
-import UserNotifications from './components/UserNotifications.tsx';
-import Support from './components/Support.tsx';
-import GlobalSearch from './components/GlobalSearch.tsx';
 import Vip from './components/Vip.tsx';
-import NovaNotification, { NovaSecurityModal } from './components/NovaNotification.tsx';
+import UserNotifications from './components/UserNotifications.tsx';
+import Referral from './components/Referral.tsx';
+import Guide from './components/Guide.tsx';
+import Login from './components/Login.tsx';
 import GoldModal from './components/GoldModal.tsx';
+import NovaNotification, { NovaSecurityModal } from './components/NovaNotification.tsx';
 import GlobalAlertSystem from './components/GlobalAlertSystem.tsx';
+import GlobalSearch from './components/GlobalSearch.tsx';
+
+import { NAV_ITEMS } from './constants.tsx';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [view, setView] = useState<AppView>(AppView.DASHBOARD);
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [hasNewNotif, setHasNewNotif] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>((localStorage.getItem('nova_theme') as 'light' | 'dark') || 'dark');
-  const [isSocialMenuOpen, setIsSocialMenuOpen] = useState(false);
   
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [securityModal, setSecurityModal] = useState<{ isOpen: boolean; score: number }>({ isOpen: false, score: 0 });
-  const [goldModal, setGoldModal] = useState<{ isOpen: boolean; title: string; description: string }>({ isOpen: false, title: '', description: '' });
+  const [toastNotifs, setToastNotifs] = useState<Notification[]>([]);
+  const [goldModal, setGoldModal] = useState({ isOpen: false, title: '', desc: '' });
+  const [securityModal, setSecurityModal] = useState({ isOpen: false, score: 100 });
+
+  useEffect(() => {
+    dbService.getCurrentUser().then(u => {
+      setUser(u);
+      setIsLoading(false);
+    });
+  }, []);
+
+  const handleUpdateUser = useCallback(async (updatedUser: User) => {
+    setUser(updatedUser);
+    const { success, message } = await dbService.updateUser(updatedUser.id, updatedUser);
+    return { success, message };
+  }, []);
 
   const showToast = useCallback((title: string, message: string, type: Notification['type'] = 'info') => {
-    const id = Math.random().toString(36).substr(2, 9);
-    setNotifications(prev => [...prev, { id, title, message, type }]);
+    const id = Date.now().toString();
+    setToastNotifs(prev => [...prev, { 
+      id, 
+      title, 
+      content: message, 
+      message, 
+      type, 
+      createdAt: new Date().toISOString() 
+    }]);
   }, []);
 
   const showGoldSuccess = useCallback((title: string, description: string) => {
-    setGoldModal({ isOpen: true, title, description });
+    setGoldModal({ isOpen: true, title, desc: description });
   }, []);
 
-  const removeNotification = useCallback((id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  }, []);
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center font-black italic text-blue-500 tracking-widest animate-pulse">NOVA SYNCING...</div>;
 
-  const loadSession = async () => {
-    const sessionUser = await dbService.getCurrentUser();
-    setUser(sessionUser);
-    setIsLoading(false);
-  };
+  if (!user) return (
+    <>
+      <GlobalAlertSystem />
+      <Login onLoginSuccess={setUser} />
+    </>
+  );
 
-  useEffect(() => {
-    loadSession();
-    const handleOnline = () => { setIsOnline(true); showToast('ONLINE', 'Đã kết nối Nova Cloud.', 'success'); };
-    const handleOffline = () => { setIsOnline(false); showToast('OFFLINE', 'Mất kết nối Internet.', 'error'); };
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    const userChannel = supabase.channel('user-sync').on('postgres_changes', { event: '*', schema: 'public', table: 'users_data' }, (payload) => {
-      if (user && ((payload.new as any)?.id === user.id || (payload.old as any)?.id === user.id)) loadSession();
-    }).subscribe();
-
-    const notifChannel = supabase.channel('notif-sync').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
-        const newNotif = payload.new as any;
-        if (user && (newNotif.user_id === user.id || newNotif.user_id === 'all')) {
-           setHasNewNotif(true);
-           showToast(newNotif.title, newNotif.content, 'info');
-        }
-    }).subscribe();
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      supabase.removeChannel(userChannel);
-      supabase.removeChannel(notifChannel);
-    };
-  }, [user?.id]);
-
-  const logout = () => { dbService.logout(); setUser(null); setCurrentView(AppView.DASHBOARD); showToast('Hẹn gặp lại', 'Đã đăng xuất an toàn.', 'info'); };
-
-  // Cập nhật hàm updateUser: thêm tham số persist để kiểm soát việc ghi vào DB
-  const updateUser = async (updated: User, persist: boolean = true) => { 
-    setUser(updated); 
+  const NavItem = ({ item }: { item: typeof NAV_ITEMS[0] }) => {
+    if (item.adminOnly && !user.isAdmin) return null;
+    const active = view === item.id;
+    const Icon = item.icon; // Lấy Component Reference
     
-    if (persist) {
-        const res = await dbService.updateUser(updated.id, updated);
-        if (!res.success) {
-            showToast('LỖI CẬP NHẬT', res.message || 'Không thể lưu thay đổi.', 'error');
-            loadSession(); 
-        }
-        return res;
-    }
-    return { success: true };
+    return (
+      <button 
+        onClick={() => { setView(item.id); setSidebarOpen(false); }} 
+        className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${
+          active ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 
+          item.isSpecial ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 
+          'text-slate-500 hover:bg-white/5'
+        }`}
+      >
+        <Icon size={18} />
+        <span className="text-[10px] font-black uppercase tracking-widest italic">{item.label}</span>
+      </button>
+    );
   };
 
-  const vipExpiringSoon = useMemo(() => {
-    if (!user?.isVip || !user?.vipUntil) return null;
-    const diff = new Date(user.vipUntil).getTime() - new Date().getTime();
-    if (diff > 0 && diff < 259200000) {
-      const hoursTotal = Math.floor(diff / (1000 * 60 * 60));
-      const days = Math.floor(hoursTotal / 24);
-      const hours = hoursTotal % 24;
-      return { days, hours };
-    }
-    return null;
-  }, [user?.isVip, user?.vipUntil]);
-
-  // Helper cho menu Social
-  const getSocialConfig = (key: string) => {
-    switch (key) {
-      case 'facebook': return { icon: <Facebook size={20} />, color: 'bg-[#1877F2]', label: 'Facebook' };
-      case 'youtube': return { icon: <Youtube size={20} />, color: 'bg-[#FF0000]', label: 'Youtube' };
-      case 'zalo': return { icon: <MessageCircle size={20} />, color: 'bg-[#0068FF]', label: 'Zalo' };
-      case 'telegram': return { icon: <Send size={20} />, color: 'bg-[#229ED9]', label: 'Telegram' };
-      case 'telegramGroup': return { icon: <UsersIcon size={20} />, color: 'bg-[#229ED9]', label: 'Nhóm hỗ trợ' };
-      case 'telegramBot': return { icon: <Bot size={20} />, color: 'bg-[#8E44AD]', label: 'Nova Bot' };
-      default: return { icon: <Send size={20} />, color: 'bg-slate-800', label: 'Liên kết' };
+  const renderView = () => {
+    switch (view) {
+      case AppView.DASHBOARD: return <Dashboard user={user} setView={setView} />;
+      case AppView.TASKS: return <Tasks user={user} onUpdateUser={setUser} />;
+      case AppView.WITHDRAW: return <Withdraw user={user} onUpdateUser={setUser} showGoldSuccess={showGoldSuccess} />;
+      case AppView.HISTORY: return <Withdraw user={user} onUpdateUser={setUser} initialHistory={true} showGoldSuccess={showGoldSuccess} />;
+      case AppView.LEADERBOARD: return <Leaderboard />;
+      case AppView.SUPPORT: return <Support />;
+      case AppView.PROFILE: return <Profile user={user} onUpdateUser={handleUpdateUser} />;
+      case AppView.GIFTCODE: return <Giftcode user={user} onUpdateUser={setUser} showGoldSuccess={showGoldSuccess} />;
+      case AppView.ADMIN: return <Admin user={user} onUpdateUser={setUser} setSecurityModal={setSecurityModal} showToast={showToast} showGoldSuccess={showGoldSuccess} />;
+      case AppView.VIP: return <Vip user={user} onUpdateUser={setUser} showGoldSuccess={showGoldSuccess} />;
+      case AppView.NOTIFICATIONS: return <UserNotifications user={user} />;
+      case AppView.REFERRAL: return <Referral user={user} />;
+      case AppView.GUIDE: return <Guide />;
+      default: return <Dashboard user={user} setView={setView} />;
     }
   };
-
-  if (isLoading) return <div className="min-h-screen bg-[#06080c] flex items-center justify-center text-blue-500 animate-pulse font-black uppercase italic tracking-widest text-xs">Nova Syncing...</div>;
-  if (!user) return <Login onLoginSuccess={(u) => { setUser(u); showToast('Chào mừng', `Xin chào ${u.fullname}!`, 'success'); }} />;
-
-  const getVipRichStyle = () => user.vipTier === VipTier.ELITE ? 'elite-border-rich' : user.vipTier === VipTier.PRO ? 'pro-border-rich' : user.vipTier === VipTier.BASIC ? 'basic-border-rich' : 'border border-white/10';
-  const getVipBadgeColor = () => user.vipTier === VipTier.ELITE ? 'text-purple-400' : user.vipTier === VipTier.PRO ? 'text-amber-400' : user.vipTier === VipTier.BASIC ? 'text-blue-400' : 'text-slate-500';
 
   return (
-    <div className={`min-h-screen flex ${theme === 'dark' ? 'bg-[#06080c]' : 'bg-slate-50'} text-slate-200 transition-colors duration-500`}>
+    <div className="min-h-screen flex bg-[#03050a]">
       <GlobalAlertSystem />
-      <NovaNotification notifications={notifications} removeNotification={removeNotification} />
-      {securityModal.isOpen && <NovaSecurityModal score={securityModal.score} onClose={() => setSecurityModal({ isOpen: false, score: 0 })} />}
-      <GoldModal 
-        isOpen={goldModal.isOpen} 
-        onClose={() => setGoldModal({ ...goldModal, isOpen: false })} 
-        title={goldModal.title} 
-        description={goldModal.description} 
-      />
+      <NovaNotification notifications={toastNotifs} removeNotification={(id) => setToastNotifs(prev => prev.filter(n => n.id !== id))} />
+      <GoldModal isOpen={goldModal.isOpen} title={goldModal.title} description={goldModal.desc} onClose={() => setGoldModal(p => ({ ...p, isOpen: false }))} />
+      {securityModal.isOpen && <NovaSecurityModal score={securityModal.score} onClose={() => setSecurityModal(p => ({ ...p, isOpen: false }))} />}
 
-      <aside className={`fixed inset-y-0 left-0 z-[100] w-72 glass-card border-r border-white/5 transform transition-transform md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="h-full flex flex-col p-8">
-          <div className="flex items-center justify-between mb-10 px-2">
-             <div className="flex items-center gap-3">
-                <Sparkles className="w-8 h-8 text-blue-500" />
-                <h2 className="font-black text-xl text-white italic tracking-tighter">NOVA</h2>
-             </div>
-             <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-slate-500"><X size={20} /></button>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 glass-card border-r border-white/5 transform transition-transform lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="h-full flex flex-col p-8 overflow-y-auto no-scrollbar">
+          <div className="flex items-center gap-3 mb-10">
+            <Sparkles className="text-blue-500 w-8 h-8" />
+            <h2 className="font-black text-2xl italic tracking-tighter">NOVA</h2>
           </div>
-          <nav className="flex-1 space-y-1 overflow-y-auto no-scrollbar">
-            {NAV_ITEMS.map(item => {
-              if (item.adminOnly && !user.isAdmin) return null;
-              return (
-                <button key={item.id} onClick={() => { setCurrentView(item.id); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${currentView === item.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-white/5'}`}>
-                  {React.cloneElement(item.icon as any, { size: 18 })}
-                  <span className="font-black text-[10px] uppercase tracking-widest italic">{item.label}</span>
-                </button>
-              );
-            })}
+          <nav className="flex-1 space-y-1">
+            {NAV_ITEMS.map(item => (
+              <NavItem key={item.id} item={item} />
+            ))}
           </nav>
           <div className="mt-auto pt-6 border-t border-white/5">
-             <div className="flex items-center gap-4 px-3 mb-6">
-               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center relative bg-slate-800 ${getVipRichStyle()}`}>
-                 {user.avatarUrl ? (
-                   <img src={user.avatarUrl} className="w-full h-full object-cover rounded-xl" />
-                 ) : (
-                   <span className="font-black text-2xl text-white italic">{user.fullname.charAt(0).toUpperCase()}</span>
-                 )}
-                 {user.isVip && <Crown className="absolute -top-4 -right-4 w-7 h-7 vip-crown-float text-amber-400 fill-amber-400" />}
-               </div>
-               <div className="overflow-hidden">
-                 <span className={`text-[10px] font-black uppercase truncate block ${getVipBadgeColor()}`}>{user.fullname}</span>
-                 <span className="text-[8px] text-slate-500 font-black uppercase italic tracking-tighter">Hạng: {user.vipTier.toUpperCase()}</span>
-               </div>
-             </div>
-             <button onClick={logout} className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-red-500 font-black hover:bg-red-500/10 transition-all uppercase text-[9px] italic"><LogOut size={18} /> THOÁT</button>
+            <button onClick={() => { dbService.logout(); window.location.reload(); }} className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-red-500 font-black uppercase text-[10px] italic hover:bg-red-500/10 transition-all">
+              <LogOut size={18} /> ĐĂNG XUẤT
+            </button>
           </div>
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 relative">
-        <header className="mb-8 space-y-4">
-           {vipExpiringSoon && (
-             <div className="w-full bg-amber-500/10 border border-amber-500/30 p-4 rounded-2xl flex items-center justify-between animate-pulse shadow-lg">
-                <div className="flex items-center gap-3">
-                   <AlertTriangle className="text-amber-500 w-5 h-5" />
-                   <p className="text-[10px] font-black text-amber-500 uppercase italic">
-                     Cảnh báo: VIP sẽ hết hạn trong {vipExpiringSoon.days} ngày {vipExpiringSoon.hours} giờ! Hãy gia hạn để duy trì quyền lợi.
-                   </p>
-                </div>
-                <button onClick={() => setCurrentView(AppView.VIP)} className="bg-amber-500 text-black px-4 py-1.5 rounded-lg text-[9px] font-black uppercase italic">Gia hạn</button>
-             </div>
-           )}
+      <main className="flex-1 overflow-y-auto relative no-scrollbar">
+        <div className="fixed top-0 right-0 left-0 lg:left-72 z-40 bg-blue-600 h-8 flex items-center overflow-hidden border-b border-white/10">
+          <div className="animate-marquee whitespace-nowrap text-white font-black uppercase italic text-[9px] tracking-[0.4em]">
+            CHÀO MỪNG ĐẾN VỚI HỆ THỐNG DIAMOND NOVA • NHẬN KIM CƯƠNG MIỄN PHÍ 100% • NẠP SẠCH KHÔNG BAN ACC • HỖ TRỢ GEMINI AI 24/7
+          </div>
+        </div>
 
-           <div className="flex items-center justify-between gap-6 glass-card p-4 rounded-3xl border border-white/5 w-full">
-              <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 bg-slate-900 rounded-xl text-white"><Menu size={20} /></button>
-              <div className="flex-1 max-w-xl"><GlobalSearch onNavigate={setCurrentView} isAdmin={user.isAdmin} /></div>
-              <div className="flex items-center gap-4">
-                  <div className="hidden lg:flex flex-col items-end">
-                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Số dư Nova</span>
-                    <span className={`text-lg font-black italic tracking-tighter ${user.isVip ? 'text-amber-400' : 'text-emerald-500'}`}>{formatK(user.balance)} P</span>
-                  </div>
-                  <button onClick={() => { setCurrentView(AppView.NOTIFICATIONS); setHasNewNotif(false); }} className={`p-3 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-all ${hasNewNotif ? 'text-blue-400 animate-pulse' : 'text-slate-400'}`}>
-                    <Bell size={18} />
-                    {hasNewNotif && <span className="absolute top-4 right-4 w-2 h-2 bg-red-500 rounded-full"></span>}
-                  </button>
+        <div className="p-8 lg:p-12 mt-10 max-w-6xl mx-auto space-y-10">
+          <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-3 bg-slate-900 rounded-xl"><Menu size={20} /></button>
+              <div className="flex flex-col">
+                <h1 className="text-2xl font-black italic uppercase tracking-tighter">TRẢI NGHIỆM LUXURY</h1>
+                <p className="text-[10px] font-bold text-slate-500 uppercase italic">Xin chào, {user.fullname}</p>
               </div>
-           </div>
-        </header>
-
-        <div className="max-w-6xl mx-auto">
-          {user.isBanned ? (
-            <div className="min-h-[50vh] flex items-center justify-center glass-card p-16 rounded-[4rem] border-2 border-red-500/30 text-center">
-              <div><WifiOff className="w-20 h-20 text-red-500 mx-auto mb-6" /><h2 className="text-3xl font-black text-white uppercase italic">TRUY CẬP BỊ TỪ CHỐI</h2><p className="text-slate-500 italic mt-2">Lý do: {user.banReason}</p></div>
             </div>
-          ) : (
-            (() => {
-              switch (currentView) {
-                case AppView.DASHBOARD: return <Dashboard user={user} setView={setCurrentView} />;
-                case AppView.TASKS: return <Tasks user={user} onUpdateUser={updateUser} />;
-                case AppView.WITHDRAW: return <Withdraw user={user} onUpdateUser={updateUser} showGoldSuccess={showGoldSuccess} />;
-                case AppView.HISTORY: return <Withdraw user={user} onUpdateUser={updateUser} initialHistory={true} showGoldSuccess={showGoldSuccess} />;
-                case AppView.LEADERBOARD: return <Leaderboard />;
-                case AppView.PROFILE: return <Profile user={user} onUpdateUser={updateUser} />;
-                case AppView.GIFTCODE: return <Giftcode user={user} onUpdateUser={updateUser} showGoldSuccess={showGoldSuccess} />;
-                case AppView.REFERRAL: return <Referral user={user} />;
-                case AppView.ADMIN: return <Admin user={user} onUpdateUser={updateUser} setSecurityModal={setSecurityModal} showToast={showToast} showGoldSuccess={showGoldSuccess} />;
-                case AppView.GUIDE: return <Guide />;
-                case AppView.NOTIFICATIONS: return <UserNotifications user={user} />;
-                case AppView.SUPPORT: return <Support />;
-                case AppView.VIP: return <Vip user={user} onUpdateUser={updateUser} showGoldSuccess={showGoldSuccess} />;
-                default: return <Dashboard user={user} setView={setCurrentView} />;
-              }
-            })()
-          )}
+            
+            <GlobalSearch onNavigate={setView} isAdmin={user.isAdmin} />
+
+            <div className="flex items-center gap-4">
+              <div className="text-right hidden sm:block">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Số dư Nova</p>
+                <p className="text-xl font-black text-emerald-500 italic leading-none">{user.balance.toLocaleString()} P</p>
+              </div>
+              <div 
+                onClick={() => setView(AppView.NOTIFICATIONS)}
+                className="p-3 bg-white/5 rounded-2xl text-slate-400 border border-white/5 relative cursor-pointer hover:bg-white/10 transition-colors"
+              >
+                <Bell size={18} />
+                <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full"></span>
+              </div>
+            </div>
+          </header>
+
+          {renderView()}
         </div>
       </main>
 
-      {/* FIXED SOCIAL MENU */}
-      <div className="fixed bottom-6 right-6 z-[200] flex flex-col items-end gap-4">
-        {isSocialMenuOpen && (
-          <div className="flex flex-col gap-4 mb-2 animate-in slide-in-from-bottom-10 duration-500">
-            {Object.entries(SOCIAL_LINKS).map(([key, url]) => {
-              const config = getSocialConfig(key);
-              return (
-                <div key={key} className="flex items-center gap-3 group">
-                  <span className="opacity-0 group-hover:opacity-100 bg-black/60 backdrop-blur-md text-[9px] font-black text-white px-3 py-1.5 rounded-lg uppercase tracking-widest border border-white/10 transition-all pointer-events-none">
-                    {config.label}
-                  </span>
-                  <a 
-                    href={url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className={`w-12 h-12 ${config.color} rounded-2xl flex items-center justify-center text-white shadow-2xl hover:scale-110 hover:rotate-6 transition-all border border-white/20`}
-                  >
-                    {config.icon}
-                  </a>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <button 
-          onClick={() => setIsSocialMenuOpen(!isSocialMenuOpen)} 
-          className={`w-14 h-14 rounded-[1.5rem] flex items-center justify-center text-white shadow-[0_10px_40px_rgba(0,0,0,0.5)] transition-all duration-500 hover:scale-110 ${isSocialMenuOpen ? 'bg-rose-600 rotate-[135deg]' : 'bg-blue-600 shadow-blue-600/20'}`}
-        >
-          {isSocialMenuOpen ? <Plus size={28} /> : <MessageSquare size={28} />}
-        </button>
-      </div>
+      {isSidebarOpen && <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)}></div>}
     </div>
   );
 };

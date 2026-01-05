@@ -3,79 +3,48 @@ export enum AppView {
   DASHBOARD = 'dashboard',
   TASKS = 'tasks',
   WITHDRAW = 'withdraw',
-  HISTORY = 'history',
   LEADERBOARD = 'leaderboard',
+  SUPPORT = 'support',
   PROFILE = 'profile',
   GIFTCODE = 'giftcode',
-  REFERRAL = 'referral',
   ADMIN = 'admin',
-  GUIDE = 'guide',
+  VIP = 'vip',
+  HISTORY = 'history',
   NOTIFICATIONS = 'notifications',
-  SUPPORT = 'support',
-  VIP = 'vip'
+  REFERRAL = 'referral',
+  GUIDE = 'guide'
 }
 
 export enum VipTier {
   NONE = 'none',
-  BASIC = 'basic', // 20k - 100k
-  PRO = 'pro',     // 100k - 500k
-  ELITE = 'elite'  // > 500k
-}
-
-export interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'success' | 'error' | 'info' | 'warning' | 'security';
-  duration?: number;
-}
-
-export interface TaskGate {
-  id: number;
-  name: string;
-  rate: number;
-  quota: number;
-  apiKey: string;
-}
-
-export interface AdminNotification {
-  id: string;
-  userId: string;
-  userName: string;
-  title: string;
-  content: string;
-  type: 'withdrawal' | 'referral' | 'auth' | 'feedback' | 'system';
-  createdAt: string;
+  BASIC = 'basic',
+  PRO = 'pro',
+  ELITE = 'elite'
 }
 
 export interface User {
   id: string;
-  adminId?: string;
   email: string;
   fullname: string;
-  bankInfo: string;
-  idGame: string;
-  phoneNumber?: string;
   balance: number;
   totalEarned: number;
-  totalGiftcodeEarned: number;
   tasksToday: number;
-  tasksWeek: number;
-  taskCounts: Record<string, number>;
-  joinDate: string;
-  lastTaskDate: string;
-  lastLogin?: string;
   isBanned: boolean;
   isAdmin: boolean;
   isVip: boolean;
-  vipUntil?: string; 
   vipTier: VipTier;
-  banReason?: string;
+  vipUntil?: string;
+  bankInfo?: string;
+  idGame?: string;
+  avatarUrl?: string;
+  joinDate: string;
+  // Extended fields used in various components
+  taskCounts: Record<string, number>;
+  lastTaskDate?: string;
   securityScore?: number;
   referralCount?: number;
   referralBonus?: number;
-  referredBy?: string;
-  avatarUrl?: string;
+  phoneNumber?: string;
 }
 
 export interface WithdrawalRequest {
@@ -89,16 +58,13 @@ export interface WithdrawalRequest {
   createdAt: string;
 }
 
-export interface Giftcode {
-  id: string; // Thêm ID để sửa/xóa
-  code: string;
-  amount: number;
-  maxUses: number;
-  usedBy: string[];
+export interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  priority: 'low' | 'high';
+  isActive: boolean;
   createdAt: string;
-  startDate?: string; // Thời gian bắt đầu
-  endDate?: string;   // Thời gian kết thúc
-  isActive?: boolean;
 }
 
 export interface AdBanner {
@@ -109,11 +75,27 @@ export interface AdBanner {
   isActive: boolean;
 }
 
-export interface Announcement {
+export interface Giftcode {
   id: string;
+  code: string;
+  amount: number;
+  maxUses: number;
+  usedBy: string[];
+  startDate?: string;
+  endDate?: string;
+  isActive: boolean;
+}
+
+export interface Notification {
+  id: string;
+  userId?: string;
+  userName?: string;
   title: string;
   content: string;
+  message?: string; // used for toasts
+  type: 'success' | 'error' | 'warning' | 'info' | 'security' | 'withdrawal' | 'referral' | 'auth' | 'feedback';
+  duration?: number;
   createdAt: string;
-  priority: 'low' | 'high';
-  isActive?: boolean;
 }
+
+export interface AdminNotification extends Notification {}

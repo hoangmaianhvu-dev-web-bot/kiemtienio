@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle2, XCircle, AlertTriangle, Info, X, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 /* 
   HỆ THỐNG THÔNG BÁO DIAMOND NOVA LUXURY
